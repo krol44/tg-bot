@@ -396,13 +396,18 @@ func (t *Task) RunConvert() {
 
 		t.FileConvertPathOut = t.FolderConvert + "/" + t.FileName + ".mp4"
 
+		presetConvert := "fast"
+		if config.IsDev {
+			presetConvert = "ultrafast"
+		}
+
 		prepareArgs := []string{
 			"-protocol_whitelist", "file",
 			"-v", "warning", "-hide_banner", "-stats",
 			"-i", t.FileConvertPath,
 			"-acodec", "mp2",
 			"-vcodec", "h264",
-			"-preset", "ultrafast",
+			"-preset", presetConvert,
 			"-ss", "00:00:00",
 			"-t", "00:05:00",
 			"-fs", "1990M",
@@ -426,6 +431,7 @@ func (t *Task) RunConvert() {
 				strings.Contains(val, "-vf") || strings.Contains(val, "scale=iw/2:ih/2")) {
 				continue
 			}
+
 			args = append(args, val)
 		}
 
