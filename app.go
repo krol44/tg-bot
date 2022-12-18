@@ -197,7 +197,7 @@ func (a *App) InitUser(message *tgbotapi.Message) {
 	}
 
 	mess := tgbotapi.NewVideo(message.Chat.ID,
-		tgbotapi.FileID("BAACAgIAAxkBAAOJY51_mtI3lFa51TYo0wI6wsF6l6sAAlwmAAK_relIYD7N9rxwfS4rBA"))
+		tgbotapi.FileID(config.WelcomeFileId))
 	mess.Caption = "Just send me torrent file with the video files 😋"
 	a.Bot.Send(mess)
 }

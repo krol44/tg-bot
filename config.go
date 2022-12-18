@@ -18,6 +18,8 @@ type Struct struct {
 	DirDB         string
 	DownloadLimit int
 
+	WelcomeFileId string
+
 	BotDebug      bool
 	BotToken      string
 	TgPathLocal   string
@@ -43,6 +45,7 @@ func init() {
 		os.Getenv("dir_bot"),
 		os.Getenv("dir_db"),
 		dl,
+		os.Getenv("welcome_video_id"),
 		botDebug,
 		os.Getenv("bot_token"),
 		os.Getenv("tg_path_local"),
