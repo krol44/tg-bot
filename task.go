@@ -397,7 +397,7 @@ func (t *Task) RunConvert() {
 		t.FileConvertPathOut = t.FolderConvert + "/" + t.FileName + ".mp4"
 
 		cv := "h264_nvenc"
-		ffmpegPath := "./ffmpeg/ffmpeg"
+		ffmpegPath := "./ffmpeg"
 		if config.IsDev {
 			cv = "h264"
 			ffmpegPath = "ffmpeg"
