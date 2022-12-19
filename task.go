@@ -409,17 +409,17 @@ func (t *Task) RunConvert() {
 			"-i", t.FileConvertPath,
 			"-acodec", "aac",
 			"-c:v", cv,
-			"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
+			//"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
 			"-preset", "medium",
 			"-ss", "00:00:00",
 			"-t", "00:05:00",
 			"-fs", "1990M",
-			"-pix_fmt", "yuv420p",
+			//"-pix_fmt", "yuv420p",
 			//"-b:v", "6M",
 			//"-maxrate", "6M",
 			//"-bufsize", "3M",
 			"-y",
-			"-f", "mp4",
+			//"-f", "mp4",
 			t.FileConvertPathOut}
 
 		// todo
