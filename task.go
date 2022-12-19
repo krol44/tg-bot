@@ -407,7 +407,7 @@ func (t *Task) RunConvert() {
 			"-protocol_whitelist", "file",
 			"-v", "warning", "-hide_banner", "-stats",
 			"-i", t.FileConvertPath,
-			"-acodec", "aac",
+			"-acodec", "mp2",
 			"-c:v", cv,
 			"-r", "25",
 			"-g", "50",
