@@ -9,6 +9,7 @@ FROM debian:buster-slim
 RUN apt update
 RUN apt install -y ffmpeg tzdata
 COPY ./ffmpeg/lib/* /lib
-COPY ./ffmpeg/ffmpeg .
+COPY ./ffmpeg/ffmpeg /ffmpeg/ffmpeg
+RUN chmod +x /ffmpeg/ffmpeg
 COPY --from=builder /app/tor-purr-bot .
 CMD ["./tor-purr-bot"]
