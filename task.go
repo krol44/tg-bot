@@ -415,9 +415,9 @@ func (t *Task) RunConvert() {
 			"-t", "00:05:00",
 			"-fs", "1990M",
 			"-pix_fmt", "yuv420p",
-			"-b:v", "6M",
-			"-maxrate", "6M",
-			"-bufsize", "3M",
+			//"-b:v", "6M",
+			//"-maxrate", "6M",
+			//"-bufsize", "3M",
 			"-y",
 			"-f", "mp4",
 			t.FileConvertPathOut}
