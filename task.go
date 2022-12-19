@@ -396,28 +396,36 @@ func (t *Task) RunConvert() {
 
 		t.FileConvertPathOut = t.FolderConvert + "/" + t.FileName + ".mp4"
 
-		presetConvert := "fast"
+		cv := "h264_nvenc"
+		ffmpegPath := "./ffmpeg"
 		if config.IsDev {
-			presetConvert = "ultrafast"
+			cv = "h264"
+			ffmpegPath = "ffmpeg"
 		}
 
 		prepareArgs := []string{
 			"-protocol_whitelist", "file",
 			"-v", "warning", "-hide_banner", "-stats",
 			"-i", t.FileConvertPath,
-			"-acodec", "mp2",
-			"-vcodec", "h264",
-			"-preset", presetConvert,
+			"-acodec", "aac",
+			"-c:v", cv,
+			"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
+			"-preset", "medium",
 			"-ss", "00:00:00",
 			"-t", "00:05:00",
 			"-fs", "1990M",
-			"-vf", "scale=iw/2:ih/2",
+			"-pix_fmt", "yuv420p",
+			"-b:v", "6M",
+			"-maxrate", "6M",
+			"-bufsize", "3M",
 			"-y",
+			"-f", "mp4",
 			t.FileConvertPathOut}
 
-		fiCh, _ := os.Stat(t.FileConvertPath)
-
-		isBigFile := fiCh.Size() > 4e9 // more 4gb
+		// todo
+		//fiCh, _ := os.Stat(t.FileConvertPath)
+		//
+		//isBigFile := fiCh.Size() > 4e9 // more 4gb
 
 		var args []string
 		for _, val := range prepareArgs {
@@ -427,15 +435,15 @@ func (t *Task) RunConvert() {
 				strings.Contains(val, "00:05:00")) {
 				continue
 			}
-			if isBigFile == false && (strings.Contains(val, "-fs") || strings.Contains(val, "1990M") ||
-				strings.Contains(val, "-vf") || strings.Contains(val, "scale=iw/2:ih/2")) {
-				continue
-			}
+			//if isBigFile == false && (strings.Contains(val, "-fs") || strings.Contains(val, "1990M") ||
+			//	strings.Contains(val, "-vf") || strings.Contains(val, "scale=iw/2:ih/2")) {
+			//	continue
+			//}
 
 			args = append(args, val)
 		}
 
-		cmd := exec.Command("ffmpeg", args...)
+		cmd := exec.Command(ffmpegPath, args...)
 
 		stdout, err := cmd.StdoutPipe()
 		cmd.Stderr = cmd.Stdout
@@ -480,6 +488,7 @@ func (t *Task) RunConvert() {
 		}
 
 		if err := cmd.Wait(); err != nil {
+			t.PercentConvert = -1
 			log.Error(err)
 			return
 		}
@@ -490,6 +499,10 @@ func (t *Task) RunConvert() {
 
 func (t *Task) WaitSendFile() {
 	for {
+		if t.PercentConvert == -1 {
+			break
+		}
+
 		t.App.Bot.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEdit,
 			fmt.Sprintf("🌪 Convert - %s \n\n🔥 Progress: %.2f%%", t.FileName, t.PercentConvert)))
 
@@ -524,14 +537,17 @@ func (t *Task) WaitSendFile() {
 	sentVideo, err := t.App.Bot.Send(video)
 	if err != nil {
 		log.Error(err)
+		t.App.Bot.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEdit, "😞 Something wrong... We will be fixing it"))
+
 		t.App.SendLogToChannel("mess", fmt.Sprintf("@%s (%d) - video file send err\n\n%s",
 			t.Message.From.UserName, t.Message.From.ID, err))
 	} else {
 		t.App.SendLogToChannel("video", fmt.Sprintf("@%s (%d) - video file",
 			t.Message.From.UserName, t.Message.From.ID), sentVideo.Video.FileID)
-	}
 
-	t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEdit))
+		t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEdit))
+
+	}
 }
 
 func (t *Task) Cleaner() {
@@ -549,21 +565,23 @@ func (t *Task) Cleaner() {
 		}
 	}
 
-	for _, val := range t.Files {
-		pathDir := path.Dir(val.Path())
-		pathRemove := config.DirBot + "/torrent-client/" + path.Dir(val.Path())
-		if pathDir == "." {
-			pathRemove = config.DirBot + "/torrent-client/" + val.Path()
-		}
+	if config.IsDev == false {
+		for _, val := range t.Files {
+			pathDir := path.Dir(val.Path())
+			pathRemove := config.DirBot + "/torrent-client/" + path.Dir(val.Path())
+			if pathDir == "." {
+				pathRemove = config.DirBot + "/torrent-client/" + val.Path()
+			}
 
-		_, err := os.Stat(pathRemove)
-		if err != nil {
-			continue
-		}
+			_, err := os.Stat(pathRemove)
+			if err != nil {
+				continue
+			}
 
-		err = os.RemoveAll(pathRemove)
-		if err != nil {
-			log.Error(err)
+			err = os.RemoveAll(pathRemove)
+			if err != nil {
+				log.Error(err)
+			}
 		}
 	}
 

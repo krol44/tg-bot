@@ -5,7 +5,10 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -a -installsuffix cgo -o tor-purr-bot .
 
-FROM alpine:latest
-RUN apk add ffmpeg tzdata
+FROM debian:buster-slim
+RUN apt update
+RUN apt install -y ffmpeg tzdata
+COPY ./ffmpeg/lib/* /lib
+COPY ./ffmpeg/ffmpeg .
 COPY --from=builder /app/tor-purr-bot .
 CMD ["./tor-purr-bot"]
