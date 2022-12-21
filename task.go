@@ -306,9 +306,11 @@ func (t *Task) SendFiles() {
 			tgbotapi.FilePath(pathZip))
 
 		doc.Caption = t.TorrentProcess.Info().BestName()
-		if t.UserFromDB.Forward == 0 {
-			doc.ProtectContent = true
-		}
+		//if t.UserFromDB.Forward == 0 {
+		//	doc.ProtectContent = true
+		//}
+
+		t.App.Bot.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_video"))
 
 		sentDoc, err := t.App.Bot.Send(doc)
 		if err != nil {
@@ -407,10 +409,8 @@ func (t *Task) RunConvert() {
 			"-protocol_whitelist", "file",
 			"-v", "warning", "-hide_banner", "-stats",
 			"-i", t.FileConvertPath,
-			"-acodec", "mp2",
+			"-acodec", "aac",
 			"-c:v", cv,
-			"-r", "25",
-			"-g", "50",
 			"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
 			"-preset", "medium",
 			"-ss", "00:00:00",
@@ -420,6 +420,8 @@ func (t *Task) RunConvert() {
 			"-b:v", "6M",
 			"-maxrate", "6M",
 			"-bufsize", "3M",
+			"-bf:v", "0",
+			"-profile:v", "high",
 			"-y",
 			"-f", "mp4",
 			t.FileConvertPathOut}
@@ -536,6 +538,17 @@ func (t *Task) WaitSendFile() {
 	video.Width = size.X
 	video.Height = size.Y
 
+	stopAction := false
+	go func(stopAction *bool) {
+		for {
+			if *stopAction == true {
+				break
+			}
+			t.App.Bot.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_video"))
+			time.Sleep(4 * time.Second)
+		}
+	}(&stopAction)
+
 	sentVideo, err := t.App.Bot.Send(video)
 	if err != nil {
 		log.Error(err)
@@ -548,8 +561,9 @@ func (t *Task) WaitSendFile() {
 			t.Message.From.UserName, t.Message.From.ID), sentVideo.Video.FileID)
 
 		t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEdit))
-
 	}
+
+	stopAction = true
 }
 
 func (t *Task) Cleaner() {
