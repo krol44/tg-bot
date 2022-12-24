@@ -100,12 +100,16 @@ func (t *Task) DownloadYoutube() []string {
 
 	cmd = exec.Command("yt-dlp", args...)
 
-	go func(cmd *exec.Cmd, folder string) {
+	stopProtected := false
+	go func(cmd *exec.Cmd, folder string, stopProtected *bool) {
 		var sizeSave int64
 		for {
+			if *stopProtected {
+				break
+			}
 			time.Sleep(60 * time.Second)
 			stat, _ := os.Stat(folder)
-			log.Warning(sizeSave == stat.Size(), sizeSave, stat.Size())
+
 			if sizeSave == stat.Size() {
 				cmd.Process.Kill()
 				log.Warning("kill cmd dl youtube")
@@ -114,7 +118,7 @@ func (t *Task) DownloadYoutube() []string {
 			}
 			sizeSave = stat.Size()
 		}
-	}(cmd, folder)
+	}(cmd, folder, &stopProtected)
 
 	stdout, err := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
@@ -167,6 +171,8 @@ func (t *Task) DownloadYoutube() []string {
 		log.Error(err)
 		return nil
 	}
+
+	stopProtected = true
 
 	dir, err := os.ReadDir(folder)
 	if err != nil {
