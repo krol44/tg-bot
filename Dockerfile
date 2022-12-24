@@ -3,11 +3,12 @@ WORKDIR /app
 COPY go.mod ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -a -installsuffix cgo -o tor-purr-bot .
+RUN go build -buildvcs=false -o tor-purr-bot .
 
 FROM debian:buster-slim
 RUN apt update
-RUN apt install -y ffmpeg tzdata yt-dlp
+RUN apt install -y ffmpeg tzdata python3 python3-venv python3-pip
+RUN python3 -m pip install -U yt-dlp
 COPY ./ffmpeg .
 COPY --from=builder /app/tor-purr-bot .
 CMD ["./tor-purr-bot"]
