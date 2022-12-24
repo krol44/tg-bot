@@ -10,6 +10,7 @@ import (
 	"golang.org/x/time/rate"
 	_ "modernc.org/sqlite"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -20,30 +21,8 @@ type App struct {
 	DB         *sqlx.DB
 	Queue      chan QueueMessages
 
-	ActiveRange   int
-	ActiveRangeMu sync.RWMutex
-
-	RangeUser   map[int64]int
-	RangeUserMu sync.RWMutex
-
+	ChatsWork     ChatsWork
 	LockForRemove sync.WaitGroup
-}
-
-type Task struct {
-	App                *App
-	Message            *tgbotapi.Message
-	TorrentProcess     *torrent.Torrent
-	TorrentProgress    int64
-	TorrentUploaded    int64
-	Files              []*torrent.File
-	FolderConvert      string
-	FileConvertPath    string
-	FileConvertPathOut string
-	FileCoverPath      string
-	FileName           string
-	PercentConvert     float64
-	MessageEdit        int
-	UserFromDB         User
 }
 
 type QueueMessages struct {
@@ -51,16 +30,18 @@ type QueueMessages struct {
 }
 
 type User struct {
-	Premium int `db:"premium"`
-	Forward int `db:"forward"`
+	TelegramId int64  `db:"telegram_id"`
+	Name       string `db:"name"`
+	Premium    int    `db:"premium"`
+	Forward    int    `db:"forward"`
 }
 
 func Run() App {
 	app := App{}
 
-	app.Queue = make(chan QueueMessages, 100)
+	app.Queue = make(chan QueueMessages, 0)
 
-	app.RangeUser = make(map[int64]int)
+	app.ChatsWork = ChatsWork{m: sync.Map{}}
 
 	var err error
 	// init bot
@@ -72,7 +53,7 @@ func Run() App {
 	}
 	app.Bot.Debug = config.BotDebug
 
-	log.Printf("Authorized on account %s", app.Bot.Self.UserName)
+	log.Infof("Authorized on account %s", app.Bot.Self.UserName)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -106,42 +87,55 @@ func Run() App {
 }
 
 func (a *App) ObserverQueue() {
-	go a.queueRange()
-}
-
-func (a *App) queueRange() {
 	var cleanerWait sync.WaitGroup
 	for val := range a.Queue {
+		// lock when files are deleting
 		a.LockForRemove.Wait()
 		cleanerWait.Add(1)
 
 		go func(valIn QueueMessages) {
+			if !a.TaskAllowed(valIn.Message.Chat.ID) {
+				return
+			}
+
 			var UserFromDB User
 			_ = a.DB.Get(&UserFromDB, "SELECT premium, forward FROM users WHERE telegram_id = ?",
 				valIn.Message.From.ID)
 
 			task := Task{Message: valIn.Message, App: a, UserFromDB: UserFromDB}
 
-			next := task.DownloadTorrentFiles()
+			// global queue
+			a.ChatsWork.IncPlus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
-			if next {
-				if task.CheckExistVideo() {
-					task.SendVideos()
-				} else {
-					task.SendFiles()
+			if valIn.Message.Document != nil && valIn.Message.Document.MimeType == "application/x-bittorrent" {
+				files := task.DownloadTorrentFiles()
+				if files != nil {
+					var c = Convert{Task: task}
+					if c.CheckExistVideo() {
+						task.SendVideos(c.Run())
+
+					} else {
+						task.SendTorFiles()
+					}
 				}
 			}
 
-			// user queue
-			a.RangeUserMu.Lock()
-			a.RangeUser[task.Message.From.ID]--
-			a.RangeUserMu.Unlock()
+			if strings.Contains(valIn.Message.Text, "youtube.com/watch?v=") ||
+				strings.Contains(valIn.Message.Text, "youtu.be") ||
+				strings.Contains(valIn.Message.Text, "youtube.com/shorts") {
+				file := task.DownloadYoutube()
+				if file != nil {
+					var c = Convert{Task: task}
+					if c.CheckExistVideo() {
+						task.SendVideos(c.Run())
+					}
+				}
+			}
 
 			// global queue
-			a.ActiveRangeMu.Lock()
-			a.ActiveRange--
-			a.ActiveRangeMu.Unlock()
+			a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
+			// lock when files are deleting
 			cleanerWait.Done()
 			cleanerWait.Wait()
 			task.Cleaner()
@@ -150,22 +144,43 @@ func (a *App) queueRange() {
 
 }
 
-func (a *App) SendLogToChannel(typeSomething string, something ...string) {
+func (a *App) TaskAllowed(chatId int64) bool {
+	//if config.IsDev {
+	//	return true
+	//}
+	if _, bo := a.ChatsWork.chat.Load(chatId); bo {
+		_, err := a.Bot.Send(tgbotapi.NewMessage(chatId, "❗️ Allowed one task"))
+		if err != nil {
+			log.Error(err)
+		}
+		return false
+	}
+
+	return true
+}
+
+func (a *App) SendLogToChannel(howId int64, typeSomething string, something ...string) {
 	go func(a *App, typeSomething string, something ...string) {
+		var UserFromDB User
+		_ = a.DB.Get(&UserFromDB, "SELECT telegram_id, name FROM users WHERE telegram_id = ?", howId)
+
 		if typeSomething == "mess" {
-			a.Bot.Send(tgbotapi.NewMessage(config.ChatIdChannelLog, something[0]))
+			a.Bot.Send(tgbotapi.NewMessage(config.ChatIdChannelLog,
+				fmt.Sprintf("%s (%d) %s", UserFromDB.Name, UserFromDB.TelegramId, something[0])))
 		}
 		if typeSomething == "doc" {
 			if len(something) == 2 {
 				sendDoc := tgbotapi.NewDocument(config.ChatIdChannelLog, tgbotapi.FileID(something[1]))
-				sendDoc.Caption = something[0]
+				sendDoc.Caption = fmt.Sprintf("%s (%d) %s",
+					UserFromDB.Name, UserFromDB.TelegramId, something[0])
 				a.Bot.Send(sendDoc)
 			}
 		}
 		if typeSomething == "video" {
 			if len(something) == 2 {
 				sendVideo := tgbotapi.NewVideo(config.ChatIdChannelLog, tgbotapi.FileID(something[1]))
-				sendVideo.Caption = something[0]
+				sendVideo.Caption = fmt.Sprintf("%s (%d) %s",
+					UserFromDB.Name, UserFromDB.TelegramId, something[0])
 				a.Bot.Send(sendVideo)
 			}
 		}
@@ -192,13 +207,15 @@ func (a *App) InitUser(message *tgbotapi.Message) {
 			log.Error(err)
 		}
 
-		a.SendLogToChannel("mess", fmt.Sprintf("@%s (%d) - new user",
-			message.From.UserName, message.From.ID))
+		a.SendLogToChannel(message.From.ID, "mess", fmt.Sprintf("new user"))
 	}
 
-	mess := tgbotapi.NewVideo(message.Chat.ID,
+	video := tgbotapi.NewVideo(message.Chat.ID,
 		tgbotapi.FileID(config.WelcomeFileId))
-	mess.Caption = "Just send me torrent file with the video files 😋"
+	video.Caption = "Just send me torrent file with the video files 😋"
+	a.Bot.Send(video)
+	mess := tgbotapi.NewMessage(message.Chat.ID, "Or send me youtube link :3 Example: https://www.youtube.com/watch?v=XqwbqxzsA2g")
+	mess.DisableWebPagePreview = true
 	a.Bot.Send(mess)
 }
 

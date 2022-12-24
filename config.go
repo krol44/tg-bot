@@ -27,8 +27,7 @@ type Struct struct {
 
 	AllowVideoFormats []string
 
-	ActiveRange     int
-	ActiveRangeUser int
+	MaxTasks int
 }
 
 var config Struct
@@ -50,9 +49,8 @@ func init() {
 		os.Getenv("bot_token"),
 		os.Getenv("tg_path_local"),
 		"http://" + os.Getenv("tg_api_endpoint") + "/bot%s/%s",
-		[]string{".avi", ".mkv", ".mp4", "MP4", "m4v", "flv", "TS", "ts", ".mov", "wmv", "webm"},
-		3,
-		1,
+		[]string{".avi", ".mkv", ".mp4", ".MP4", ".m4v", ".flv", ".TS", ".ts", ".mov", ".wmv", ".webm"},
+		2,
 	}
 
 	logSetup()
