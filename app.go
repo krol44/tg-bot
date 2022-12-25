@@ -120,10 +120,10 @@ func (a *App) ObserverQueue() {
 				}
 			}
 
-			if strings.Contains(valIn.Message.Text, "youtube.com/watch?v=") ||
+			if strings.Contains(valIn.Message.Text, "youtube.com") ||
 				strings.Contains(valIn.Message.Text, "youtu.be") ||
-				strings.Contains(valIn.Message.Text, "youtube.com/shorts") {
-				file := task.DownloadYoutube()
+				strings.Contains(valIn.Message.Text, "tiktok.com") {
+				file := task.DownloadVideoUrl()
 				if file != nil {
 					var c = Convert{Task: task}
 					if c.CheckExistVideo() {
@@ -214,7 +214,9 @@ func (a *App) InitUser(message *tgbotapi.Message) {
 		tgbotapi.FileID(config.WelcomeFileId))
 	video.Caption = "Just send me torrent file with the video files 😋"
 	a.Bot.Send(video)
-	mess := tgbotapi.NewMessage(message.Chat.ID, "Or send me youtube link :3 Example: https://www.youtube.com/watch?v=XqwbqxzsA2g")
+	mess := tgbotapi.NewMessage(message.Chat.ID, "Or send me youtube, tiktok link :3\n"+
+		"Example: https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
+		"Example: https://vt.tiktok.com/ZS8jY2NVd")
 	mess.DisableWebPagePreview = true
 	a.Bot.Send(mess)
 }

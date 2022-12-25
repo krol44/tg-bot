@@ -23,9 +23,9 @@ func main() {
 
 			// long time
 			if (update.Message.Document != nil && update.Message.Document.MimeType == "application/x-bittorrent") ||
-				strings.Contains(update.Message.Text, "youtube.com/watch?v=") ||
+				strings.Contains(update.Message.Text, "youtube.com") ||
 				strings.Contains(update.Message.Text, "youtu.be") ||
-				strings.Contains(update.Message.Text, "youtube.com/shorts") {
+				strings.Contains(update.Message.Text, "tiktok.com") {
 				app.Queue <- struct{ Message *tgbotapi.Message }{Message: update.Message}
 			}
 		}

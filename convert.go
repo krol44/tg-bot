@@ -29,6 +29,7 @@ type FileConverted struct {
 	CoverSize image.Point
 }
 
+// Run todo if five size more 2 gb make bitrate low
 func (c Convert) Run() []FileConverted {
 	c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
 
@@ -36,30 +37,30 @@ func (c Convert) Run() []FileConverted {
 	c.ErrorAllowFormat = make([]string, 0)
 
 	for _, pathway := range c.Task.Files {
-		FileConvertPath := pathway
+		fileConvertPath := pathway
 
-		_, err := os.Stat(FileConvertPath)
+		_, err := os.Stat(fileConvertPath)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
-		if !c.Task.IsAllowFormatForConvert(FileConvertPath) {
-			c.ErrorAllowFormat = append(c.ErrorAllowFormat, path.Ext(FileConvertPath))
+		if !c.Task.IsAllowFormatForConvert(fileConvertPath) {
+			c.ErrorAllowFormat = append(c.ErrorAllowFormat, path.Ext(fileConvertPath))
 			continue
 		}
 
-		FileName := strings.TrimSuffix(path.Base(FileConvertPath), path.Ext(path.Base(FileConvertPath)))
+		FileName := strings.TrimSuffix(path.Base(fileConvertPath), path.Ext(path.Base(fileConvertPath)))
 
 		// create folder
-		FolderConvert, err := c.CreateFolderConvert(FileName)
-		if err != nil {
-			log.Warning(err)
+		folderConvert, errCreat := c.CreateFolderConvert(FileName)
+		if errCreat != nil {
+			log.Warning(errCreat)
 		}
 
-		pathwayNewFiles := FolderConvert + "/" + FileName
-		FileCoverPath := pathwayNewFiles + ".jpg"
-		FileConvertPathOut := pathwayNewFiles + ".mp4"
+		pathwayNewFiles := folderConvert + "/" + FileName
+		fileCoverPath := pathwayNewFiles + ".jpg"
+		fileConvertPathOut := pathwayNewFiles + ".mp4"
 
 		cv := "h264_nvenc"
 		ffmpegPath := "./ffmpeg"
@@ -71,7 +72,7 @@ func (c Convert) Run() []FileConverted {
 		prepareArgs := []string{
 			"-protocol_whitelist", "file",
 			"-v", "warning", "-hide_banner", "-stats",
-			"-i", FileConvertPath,
+			"-i", fileConvertPath,
 			"-acodec", "aac",
 			"-c:v", cv,
 			"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
@@ -88,7 +89,7 @@ func (c Convert) Run() []FileConverted {
 			//"-profile:v", "high",
 			"-y",
 			"-f", "mp4",
-			FileConvertPathOut}
+			fileConvertPathOut}
 
 		var args []string
 		for _, pa := range prepareArgs {
@@ -120,7 +121,7 @@ func (c Convert) Run() []FileConverted {
 			continue
 		}
 
-		timeTotalRaw := c.TimeTotalRaw(FileConvertPath)
+		timeTotal := c.TimeTotalRaw(fileConvertPath)
 		tmpLast := ""
 		for {
 			tmp := make([]byte, 1024)
@@ -132,19 +133,12 @@ func (c Convert) Run() []FileConverted {
 
 			var timeLeft time.Time
 			if len(matches) == 2 {
-				timeLeft, err = time.Parse("15:04:05,00", strings.Trim(matches[1], " "))
-				if err != nil {
-					log.Error(err)
-				}
+				timeLeft, _ = time.Parse("15:04:05,00", strings.Trim(matches[1], " "))
 			} else {
 				break
 			}
 
 			timeNull, _ := time.Parse("15:04:05", "00:00:00")
-			timeTotal, err := time.Parse("15:04:05,000000", strings.Trim(timeTotalRaw, "\n"))
-			if err != nil {
-				log.Error(err)
-			}
 
 			PercentConvert, _ := strconv.ParseFloat(fmt.Sprintf("%.2f",
 				100-(timeTotal.Sub(timeLeft).Seconds()/timeTotal.Sub(timeNull).Seconds())*100), 64)
@@ -153,11 +147,11 @@ func (c Convert) Run() []FileConverted {
 				break
 			}
 
-			_, err = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
+			_, errEdit := c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
 				fmt.Sprintf("🌪 %s \n\n🔥 Convert progress: %.2f%%", FileName, PercentConvert)))
 
-			if err != nil {
-				log.Warning(err)
+			if errEdit != nil {
+				log.Warning(errEdit)
 			}
 
 			time.Sleep(2 * time.Second)
@@ -170,30 +164,30 @@ func (c Convert) Run() []FileConverted {
 		}
 
 		// create cover
-		err = c.CreateCover(FileConvertPathOut, FileCoverPath)
+		err = c.CreateCover(fileConvertPathOut, fileCoverPath, timeTotal)
 		if err != nil {
 			log.Error(err)
 		}
 
 		// set permit
-		err = os.Chmod(FileConvertPathOut, os.ModePerm)
+		err = os.Chmod(fileConvertPathOut, os.ModePerm)
 		if err != nil {
 			log.Error(err)
 		}
-		err = os.Chmod(FileCoverPath, os.ModePerm)
+		err = os.Chmod(fileCoverPath, os.ModePerm)
 		if err != nil {
 			log.Error(err)
 		}
 
 		// get size
-		sizeCover, err := c.GetSizeCover(FileCoverPath)
+		sizeCover, err := c.GetSizeCover(fileCoverPath)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
 		c.FilesConverted = append(c.FilesConverted, FileConverted{FileName,
-			FileConvertPathOut, FileCoverPath, sizeCover})
+			fileConvertPathOut, fileCoverPath, sizeCover})
 	}
 
 	if len(c.ErrorAllowFormat) > 0 {
@@ -205,14 +199,14 @@ func (c Convert) Run() []FileConverted {
 }
 
 func (c Convert) CreateFolderConvert(FileName string) (string, error) {
-	FolderConvert := config.DirBot + "/storage/" + c.Task.UniqueId("files-"+
+	folderConvert := config.DirBot + "/storage/" + c.Task.UniqueId("files-convert-"+
 		FileName+"-"+strconv.FormatInt(c.Task.Message.From.ID, 10))
-	err := os.Mkdir(FolderConvert, os.ModePerm)
+	err := os.Mkdir(folderConvert, os.ModePerm)
 	if err != nil {
 		return "", err
 	}
 
-	return FolderConvert, nil
+	return folderConvert, nil
 }
 
 func (c Convert) CheckExistVideo() bool {
@@ -226,22 +220,27 @@ func (c Convert) CheckExistVideo() bool {
 	return existVideo
 }
 
-func (c Convert) CreateCover(videoFile string, FileCoverPath string) error {
+func (c Convert) CreateCover(videoFile string, fileCoverPath string, timeTotal time.Time) error {
+	timeCut := "00:00:30"
+	if timeTotal.Second() <= 40 {
+		timeCut = "00:00:01"
+	}
+
 	_, err := exec.Command("ffmpeg",
 		"-protocol_whitelist", "file",
 		"-i", videoFile,
-		"-ss", "00:00:30",
+		"-ss", timeCut,
 		"-vframes", "1",
 		"-y",
-		FileCoverPath).Output()
+		fileCoverPath).Output()
 
-	os.Chmod(FileCoverPath, os.ModePerm)
+	os.Chmod(fileCoverPath, os.ModePerm)
 
 	return err
 }
 
-func (c Convert) GetSizeCover(FileCoverPath string) (image.Point, error) {
-	existingImageFile, err := os.Open(FileCoverPath)
+func (c Convert) GetSizeCover(fileCoverPath string) (image.Point, error) {
+	existingImageFile, err := os.Open(fileCoverPath)
 	if err != nil {
 		return image.Point{X: 0, Y: 0}, err
 	}
@@ -264,7 +263,7 @@ func (c Convert) GetSizeCover(FileCoverPath string) (image.Point, error) {
 	return loadedImage.Bounds().Size(), nil
 }
 
-func (c Convert) TimeTotalRaw(pathway string) string {
+func (c Convert) TimeTotalRaw(pathway string) time.Time {
 	timeTotalRaw, err := exec.Command("ffprobe",
 		"-protocol_whitelist", "file",
 		"-v", "error",
@@ -276,5 +275,9 @@ func (c Convert) TimeTotalRaw(pathway string) string {
 		log.Error(err)
 	}
 
-	return string(timeTotalRaw)
+	parse, err := time.Parse("15:04:05,000000", strings.Trim(string(timeTotalRaw), "\n"))
+	if err != nil {
+		log.Error(err)
+	}
+	return parse
 }

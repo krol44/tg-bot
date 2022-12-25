@@ -1,0 +1,103 @@
+type Gen struct {
+	CommentCount int    `json:"comment_count" gorm:"column:comment_count"`
+	AudioExt     string `json:"audio_ext" gorm:"column:audio_ext"`
+	Fulltitle    string `json:"fulltitle" gorm:"column:fulltitle"`
+	Resolution   string `json:"resolution" gorm:"column:resolution"`
+	Protocol     string `json:"protocol" gorm:"column:protocol"`
+	FormatID     string `json:"format_id" gorm:"column:format_id"`
+	ID           string `json:"id" gorm:"column:id"`
+	Version      struct {
+		CurrentGitHead interface{} `json:"current_git_head" gorm:"column:current_git_head"`
+		Repository     string      `json:"repository" gorm:"column:repository"`
+		Version        string      `json:"version" gorm:"column:version"`
+		ReleaseGitHead string      `json:"release_git_head" gorm:"column:release_git_head"`
+	} `json:"_version" gorm:"column:_version"`
+	Height             int         `json:"height" gorm:"column:height"`
+	Ext                string      `json:"ext" gorm:"column:ext"`
+	Thumbnail          string      `json:"thumbnail" gorm:"column:thumbnail"`
+	LikeCount          int         `json:"like_count" gorm:"column:like_count"`
+	HasDrm             interface{} `json:"_has_drm" gorm:"column:_has_drm"`
+	VideoExt           string      `json:"video_ext" gorm:"column:video_ext"`
+	Format             string      `json:"format" gorm:"column:format"`
+	WebpageUrl         string      `json:"webpage_url" gorm:"column:webpage_url"`
+	WebpageUrlBasename string      `json:"webpage_url_basename" gorm:"column:webpage_url_basename"`
+	Quality            int         `json:"quality" gorm:"column:quality"`
+	DurationString     string      `json:"duration_string" gorm:"column:duration_string"`
+	Filename           string      `json:"filename" gorm:"column:filename"`
+	HttpHeaders        struct {
+		Accept string `json:"Accept" gorm:"column:Accept"`
+		User-Agent    string    `json:"User-Agent" gorm:"column:User-Agent"`
+		Accept-Language    string    `json:"Accept-Language" gorm:"column:Accept-Language"`
+		Sec-Fetch-Mode    string    `json:"Sec-Fetch-Mode" gorm:"column:Sec-Fetch-Mode"`
+	} `json:"http_headers" gorm:"column:http_headers"`
+	ExtractorKey       string      `json:"extractor_key" gorm:"column:extractor_key"`
+	WebpageUrlDomain   string      `json:"webpage_url_domain" gorm:"column:webpage_url_domain"`
+	RequestedSubtitles interface{} `json:"requested_subtitles" gorm:"column:requested_subtitles"`
+	RepostCount        int         `json:"repost_count" gorm:"column:repost_count"`
+	UploaderID         string      `json:"uploader_id" gorm:"column:uploader_id"`
+	Formats            []struct {
+		Ext              string `json:"ext" gorm:"column:ext"`
+		Vcodec           string `json:"vcodec" gorm:"column:vcodec"`
+		AudioExt         string `json:"audio_ext" gorm:"column:audio_ext"`
+		VideoExt         string `json:"video_ext" gorm:"column:video_ext"`
+		Preference       int    `json:"preference" gorm:"column:preference"`
+		Format           string `json:"format" gorm:"column:format"`
+		SourcePreference int    `json:"source_preference" gorm:"column:source_preference"`
+		Filesize         int    `json:"filesize" gorm:"column:filesize"`
+		DynamicRange     string `json:"dynamic_range" gorm:"column:dynamic_range"`
+		Resolution       string `json:"resolution" gorm:"column:resolution"`
+		Url              string `json:"url" gorm:"column:url"`
+		Protocol         string `json:"protocol" gorm:"column:protocol"`
+		HttpHeaders      struct {
+			Cookie string `json:"Cookie" gorm:"column:Cookie"`
+			Accept string `json:"Accept" gorm:"column:Accept"`
+			User-Agent    string    `json:"User-Agent" gorm:"column:User-Agent"`
+			Accept-Language    string    `json:"Accept-Language" gorm:"column:Accept-Language"`
+			Sec-Fetch-Mode    string    `json:"Sec-Fetch-Mode" gorm:"column:Sec-Fetch-Mode"`
+		} `json:"http_headers" gorm:"column:http_headers"`
+		FormatNote string `json:"format_note" gorm:"column:format_note"`
+		Acodec     string `json:"acodec" gorm:"column:acodec"`
+		Width      int    `json:"width" gorm:"column:width"`
+		FormatID   string `json:"format_id" gorm:"column:format_id"`
+		Height     int    `json:"height" gorm:"column:height"`
+	} `json:"formats" gorm:"column:formats"`
+	Artist           string      `json:"artist" gorm:"column:artist"`
+	DisplayID        string      `json:"display_id" gorm:"column:display_id"`
+	Tbr              int         `json:"tbr" gorm:"column:tbr"`
+	Vbr              int         `json:"vbr" gorm:"column:vbr"`
+	Extractor        string      `json:"extractor" gorm:"column:extractor"`
+	Description      string      `json:"description" gorm:"column:description"`
+	SourcePreference int         `json:"source_preference" gorm:"column:source_preference"`
+	Epoch            int         `json:"epoch" gorm:"column:epoch"`
+	Availability     interface{} `json:"availability" gorm:"column:availability"`
+	Filesize         int         `json:"filesize" gorm:"column:filesize"`
+	Title            string      `json:"title" gorm:"column:title"`
+	Duration         int         `json:"duration" gorm:"column:duration"`
+	Urls             string      `json:"urls" gorm:"column:urls"`
+	Playlist         interface{} `json:"playlist" gorm:"column:playlist"`
+	Uploader         string      `json:"uploader" gorm:"column:uploader"`
+	FormatNote       string      `json:"format_note" gorm:"column:format_note"`
+	Track            string      `json:"track" gorm:"column:track"`
+	Timestamp        int         `json:"timestamp" gorm:"column:timestamp"`
+	UploadDate       string      `json:"upload_date" gorm:"column:upload_date"`
+	Subtitles        struct {
+	} `json:"subtitles" gorm:"column:subtitles"`
+	Creator       string      `json:"creator" gorm:"column:creator"`
+	Vcodec        string      `json:"vcodec" gorm:"column:vcodec"`
+	Album         interface{} `json:"album" gorm:"column:album"`
+	Type          string      `json:"_type" gorm:"column:_type"`
+	UploaderUrl   string      `json:"uploader_url" gorm:"column:uploader_url"`
+	DynamicRange  string      `json:"dynamic_range" gorm:"column:dynamic_range"`
+	Url           string      `json:"url" gorm:"column:url"`
+	PlaylistIndex interface{} `json:"playlist_index" gorm:"column:playlist_index"`
+	Abr           int         `json:"abr" gorm:"column:abr"`
+	OriginalUrl   string      `json:"original_url" gorm:"column:original_url"`
+	Acodec        string      `json:"acodec" gorm:"column:acodec"`
+	Width         int         `json:"width" gorm:"column:width"`
+	Thumbnails    []struct {
+		ID  string `json:"id" gorm:"column:id"`
+		Url string `json:"url" gorm:"column:url"`
+	} `json:"thumbnails" gorm:"column:thumbnails"`
+	ViewCount int    `json:"view_count" gorm:"column:view_count"`
+	Filename  string `json:"_filename" gorm:"column:_filename"`
+}
