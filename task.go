@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/anacrolix/torrent"
 	"github.com/krol44/telegram-bot-api"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path"
@@ -29,7 +30,8 @@ type Task struct {
 func (t Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
 	mess, err := t.App.Bot.Send(ct)
 	if err != nil {
-		log.Traceln(err)
+		log.Error(ct, err)
+		log.Infof("%+v", errors.WithStack(errors.New("Stacktrace")))
 	}
 
 	return mess
