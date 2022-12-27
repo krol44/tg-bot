@@ -6,6 +6,7 @@ import (
 	"github.com/krol44/telegram-bot-api"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"math/rand"
 	"os"
 	"path"
 	"time"
@@ -56,9 +57,6 @@ func (t *Task) Alloc(typeDl string) {
 	}
 
 	if t.UserFromDB.Premium == 0 {
-		t.Send(tgbotapi.NewSticker(t.Message.Chat.ID,
-			tgbotapi.FileID("CAACAgIAAxkBAAIEW2OcfHb7yPa6z59rHlFiTTUTkA3XAAJ-GQACHiDBS43V6msCr8MXKwQ")))
-
 		messPremium := tgbotapi.NewMessage(t.Message.Chat.ID,
 			`‼️ You don't have a donation for us, only the first 5 minutes video is available and torrent in the zip archive don't available too
 
@@ -67,6 +65,10 @@ func (t *Task) Alloc(typeDl string) {
 		(Write your telegram username in the body message. After donation, you will access 30 days)`)
 		messPremium.ParseMode = tgbotapi.ModeHTML
 		t.Send(messPremium)
+
+		rand.Seed(time.Now().Unix())
+		t.Send(tgbotapi.NewSticker(t.Message.Chat.ID,
+			tgbotapi.FileID(config.CuteStickers[rand.Intn(len(config.CuteStickers))])))
 	}
 
 	// log

@@ -28,6 +28,8 @@ type Struct struct {
 	AllowVideoFormats []string
 
 	MaxTasks int
+
+	CuteStickers []string
 }
 
 var config Struct
@@ -51,6 +53,13 @@ func init() {
 		"http://" + os.Getenv("tg_api_endpoint") + "/bot%s/%s",
 		[]string{".avi", ".mkv", ".mp4", ".MP4", ".m4v", ".flv", ".TS", ".ts", ".mov", ".wmv", ".webm"},
 		2,
+		[]string{
+			"CAACAgIAAxkBAAIEW2OcfHb7yPa6z59rHlFiTTUTkA3XAAJ-GQACHiDBS43V6msCr8MXKwQ",
+			"CAACAgIAAxkBAAIRe2OreICfsmmDoEHCgcsn06OdRcplAALMGgACZd54S0GizHhUHVFiKwQ",
+			"CAACAgIAAxkBAAIRfWOreMzwPkQDC4jYKGUTeCxNO3TuAAJ3GAAC24IRSEjXhoRmKkUtKwQ",
+			"CAACAgIAAxkBAAIRfmOrePNC-c3sDM95Ixi2awl1O2j1AAKGGgACrYHBS0S6i4Mlw7dfKwQ",
+			"CAACAgIAAxkBAAIRf2OreSqRlT1RsFG2kR94YPZ_RV44AAIxHAACG_9pSSKkRFrvOqSWKwQ",
+		},
 	}
 
 	logSetup()
