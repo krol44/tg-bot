@@ -69,7 +69,7 @@ func (c Convert) Run() []FileConverted {
 		fileConvertPathOut := pathwayNewFiles + ".mp4"
 
 		timeTotal := c.TimeTotalRaw(fileConvertPath)
-
+		c.CreateCover(fileConvertPath, fileCoverPath, timeTotal)
 		err = c.execConvert(bitrate, timeTotal, filaName, fileConvertPath, fileConvertPathOut)
 		if err != nil {
 			c.Task.Send(tgbotapi.NewMessage(c.Task.Message.Chat.ID, "❗️ Video is bad - "+filaName))
@@ -78,9 +78,9 @@ func (c Convert) Run() []FileConverted {
 		}
 
 		timeTotalAfter := c.TimeTotalRaw(fileConvertPathOut)
-		if timeTotal.Second() != timeTotalAfter.Second() {
-			mess := fmt.Sprintf("‼️ different time after convert, before %d sec - after %d sec",
-				timeTotal.Second(), timeTotalAfter.Second())
+		if timeTotal.Format("15:04") != timeTotalAfter.Format("15:04") {
+			mess := fmt.Sprintf("‼️ different time after convert, before %s sec - after %s sec",
+				timeTotal.Format("15:04"), timeTotalAfter.Format("15:04"))
 			log.Info(mess)
 			c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", mess)
 		}
@@ -246,7 +246,8 @@ func (c Convert) CheckExistVideo() bool {
 
 func (c Convert) CreateCover(videoFile string, fileCoverPath string, timeTotal time.Time) error {
 	timeCut := "00:00:30"
-	if timeTotal.Second() <= 40 {
+	if timeTotal.
+		Sub(time.Date(0000, 01, 01, 00, 00, 00, 0, time.UTC)).Seconds() <= 40 {
 		timeCut = "00:00:01"
 	}
 
