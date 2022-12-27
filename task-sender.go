@@ -57,7 +57,7 @@ func (t Task) SendVideos(files []FileConverted) {
 			return
 		} else {
 			stopAction = true
-			t.App.SendLogToChannel(t.Message.From.ID, "video", fmt.Sprintf("video file"),
+			t.App.SendLogToChannel(t.Message.From.ID, "video", fmt.Sprintf("video file - "+v.Name),
 				sentVideo.Video.FileID)
 		}
 	}
@@ -159,7 +159,7 @@ func (t Task) SendTorFiles() {
 				"mess", fmt.Sprintf("zip file send err\n\n%s", err))
 		} else {
 			t.App.SendLogToChannel(t.Message.From.ID,
-				"doc", fmt.Sprintf("doc file"), sentDoc.Document.FileID)
+				"doc", fmt.Sprintf("doc file - "+t.Torrent.Name), sentDoc.Document.FileID)
 		}
 
 		stopAction = true
