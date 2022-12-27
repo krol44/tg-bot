@@ -136,7 +136,7 @@ func (c Convert) execConvert(rate int, timeTotal time.Time, fileName string, fil
 		"-i", fileConvertPath,
 		"-acodec", "aac",
 		"-c:v", cv,
-		//"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
+		"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
 		"-preset", "medium",
 		"-ss", "00:00:00",
 		"-t", "00:05:00",
