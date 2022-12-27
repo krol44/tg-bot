@@ -76,7 +76,9 @@ func (t *Task) DownloadVideoUrl() []string {
 
 	protectedFlag = false
 
-	infoText := fmt.Sprintf("📺 Video: %s", infoVideo.FullTitle)
+	cleanTitle := strings.ReplaceAll(infoVideo.FullTitle, "#", "")
+
+	infoText := fmt.Sprintf("📺 Video: %s", cleanTitle)
 	messInfo := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, infoText))
 	// pin
 	pinChatInfoMess := tgbotapi.PinChatMessageConfig{
@@ -88,7 +90,6 @@ func (t *Task) DownloadVideoUrl() []string {
 		log.Warning(err)
 	}
 
-	name := path.Clean(strings.TrimSuffix(infoVideo.Filename, path.Ext(infoVideo.Filename)))
 	folder := config.DirBot + "/storage" + "/" + t.UniqueId("files-video")
 
 	args := []string{
@@ -164,7 +165,7 @@ func (t *Task) DownloadVideoUrl() []string {
 			percent = strings.TrimSpace(matches[1])
 		}
 		_, errEdit := t.App.Bot.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("🔽 %s \n\n🔥 Download progress: %s%%", name, percent)))
+			fmt.Sprintf("🔽 %s \n\n🔥 Download progress: %s%%", cleanTitle, percent)))
 		if errEdit != nil {
 			log.Warning(errEdit)
 		}
@@ -191,11 +192,18 @@ func (t *Task) DownloadVideoUrl() []string {
 
 	var filePath string
 	for _, file := range dir {
-		filePath = file.Name()
+		oldFilePath := folder + "/" + file.Name()
+		filePath = strings.ReplaceAll(oldFilePath, "#", "")
+
+		err := os.Rename(oldFilePath, filePath)
+		if err != nil {
+			log.Error(err)
+		}
+
 		break
 	}
 
-	t.Files = []string{folder + "/" + filePath}
+	t.Files = []string{filePath}
 	return t.Files
 }
 

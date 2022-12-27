@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const sign = "\n\n@TorPurrBot - download and convert\n Torrent, youtube, tiktok, other"
+
 func (t Task) SendVideos(files []FileConverted) {
 	for _, v := range files {
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
@@ -21,7 +23,7 @@ func (t Task) SendVideos(files []FileConverted) {
 			tgbotapi.FilePath(v.FilePath))
 
 		video.SupportsStreaming = true
-		video.Caption = v.Name
+		video.Caption = v.Name + sign
 		if t.UserFromDB.Premium == 0 {
 			video.ProtectContent = true
 		}
@@ -36,7 +38,7 @@ func (t Task) SendVideos(files []FileConverted) {
 					break
 				}
 
-				t.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_video"))
+				_, _ = t.App.Bot.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_video"))
 
 				time.Sleep(4 * time.Second)
 			}
@@ -60,7 +62,7 @@ func (t Task) SendVideos(files []FileConverted) {
 		}
 	}
 
-	t.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEditID))
+	_, _ = t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEditID))
 }
 
 func (t Task) SendTorFiles() {
@@ -132,7 +134,7 @@ func (t Task) SendTorFiles() {
 		doc := tgbotapi.NewDocument(t.Message.Chat.ID,
 			tgbotapi.FilePath(pathZip))
 
-		doc.Caption = t.Torrent.Name
+		doc.Caption = t.Torrent.Name + sign
 		if t.UserFromDB.Premium == 0 {
 			doc.ProtectContent = true
 		}
@@ -144,7 +146,7 @@ func (t Task) SendTorFiles() {
 					break
 				}
 
-				t.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_document"))
+				_, _ = t.App.Bot.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_document"))
 
 				time.Sleep(4 * time.Second)
 			}
@@ -162,6 +164,6 @@ func (t Task) SendTorFiles() {
 
 		stopAction = true
 
-		t.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEditID))
+		_, _ = t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEditID))
 	}
 }

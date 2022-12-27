@@ -17,6 +17,10 @@ func main() {
 			// Logs sqlite
 			app.Logs(update.Message)
 
+			if update.Message.Text != "" {
+				app.SendLogToChannel(update.Message.From.ID, "mess", "Send message: "+update.Message.Text)
+			}
+
 			if update.Message.Text == "/start" {
 				app.InitUser(update.Message)
 			}
@@ -41,10 +45,10 @@ func main() {
 				_ = app.DB.Get(&user, "SELECT name, premium FROM users WHERE telegram_id = ?", sp[1])
 
 				premium := 0
-				premiumText := "disabled"
+				premiumText := "disabled 😔"
 				if user.Premium == 0 {
 					premium = 1
-					premiumText = "enabled"
+					premiumText = "enabled 🎉"
 				}
 				_, err := app.DB.Exec("UPDATE users SET premium = ? WHERE telegram_id = ?", premium, sp[1])
 				if err != nil {
@@ -52,8 +56,9 @@ func main() {
 				}
 
 				if whoId, err := strconv.Atoi(sp[1]); err == nil {
-					app.SendLogToChannel(int64(whoId), "mess",
-						fmt.Sprintf("premium is %s", premiumText))
+					pt := fmt.Sprintf("Premium is %s", premiumText)
+					app.SendLogToChannel(int64(whoId), "mess", pt)
+					_, _ = app.Bot.Send(tgbotapi.NewMessage(int64(whoId), pt))
 				}
 			}
 		}
