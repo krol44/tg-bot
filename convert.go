@@ -69,7 +69,7 @@ func (c Convert) Run() []FileConverted {
 		fileConvertPathOut := pathwayNewFiles + ".mp4"
 
 		timeTotal := c.TimeTotalRaw(fileConvertPath)
-		c.CreateCover(fileConvertPath, fileCoverPath, timeTotal)
+
 		err = c.execConvert(bitrate, timeTotal, filaName, fileConvertPath, fileConvertPathOut)
 		if err != nil {
 			c.Task.Send(tgbotapi.NewMessage(c.Task.Message.Chat.ID, "❗️ Video is bad - "+filaName))
