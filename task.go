@@ -96,21 +96,13 @@ func (t *Task) Cleaner() {
 	}
 
 	if config.IsDev == false {
-		for _, pathWay := range t.Files {
-			pathDir := path.Dir(pathWay)
-			pathRemove := config.DirBot + "/torrent-client/" + path.Dir(pathWay)
-
-			// todo change or remove
-			if pathDir == "." {
-				pathRemove = config.DirBot + "/torrent-client/" + pathWay
-			}
-
-			_, err := os.Stat(pathRemove)
-			if err != nil {
+		pathTorrent := config.DirBot + "/torrent-client"
+		tors, _ := os.ReadDir(pathTorrent)
+		for _, val := range tors {
+			if val.Name() == ".torrent.db" || val.Name() == ".torrent.db-shm" || val.Name() == ".torrent.db-wal" {
 				continue
 			}
-
-			err = os.RemoveAll(pathRemove)
+			err := os.RemoveAll(pathTorrent + "/" + val.Name())
 			if err != nil {
 				log.Error(err)
 			}
