@@ -39,8 +39,10 @@ type User struct {
 func Run() App {
 	app := App{}
 
+	// create queue
 	app.Queue = make(chan QueueMessages, 0)
 
+	// create lock turn
 	app.ChatsWork = ChatsWork{m: sync.Map{}}
 
 	var err error
@@ -64,8 +66,10 @@ func Run() App {
 	app.DB, err = sqlx.Connect("sqlite", config.DirDB+"/store.db")
 	//defer app.DB.Close()
 
+	// create table is not exist
 	app.initTables()
 
+	// create folders if not exist
 	app.initFolders()
 
 	// init torrent
@@ -113,11 +117,12 @@ func (a *App) ObserverQueue() {
 					var c = Convert{Task: task}
 					if c.CheckExistVideo() {
 						task.SendVideos(c.Run())
-
 					} else {
 						task.SendTorFiles()
 					}
 				}
+
+				task.RemoveMessageEdit()
 			}
 
 			if strings.Contains(valIn.Message.Text, "youtube.com") ||
@@ -130,6 +135,8 @@ func (a *App) ObserverQueue() {
 						task.SendVideos(c.Run())
 					}
 				}
+
+				task.RemoveMessageEdit()
 			}
 
 			// global queue
@@ -267,13 +274,35 @@ create table if not exists logs
     json             text,
     date_create 	 text
 );
+
 create table if not exists chats
 (
-    chat_id BIGINT,
+    chat_id 		 BIGINT,
     date_create 	 text
 );
 create unique index if not exists chats_chat_id_uindex
     on chats (chat_id);
+
+create table if not exists cache
+(
+    id integer
+        constraint cache_pk
+            primary key autoincrement,
+    caption				text,
+    native_path_file	text,
+    native_md5_sum		text,
+    video_url_id		text,
+    tg_from_id			text,
+    tg_file_id			text,
+    tg_file_size		int,
+    date_create			text
+);
+create index if not exists cache_native_path_file_index
+    on cache (native_path_file);
+create index if not exists cache_native_md5_sum_index
+    on cache (native_md5_sum);
+create index if not exists cache_video_url_id_index
+    on cache (video_url_id);
 				`); err != nil {
 		log.Error(err)
 	}

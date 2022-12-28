@@ -76,6 +76,12 @@ func (t *Task) DownloadVideoUrl() []string {
 
 	protectedFlag = false
 
+	t.VideoUrlID = infoVideo.ID
+	cache := Cache{Task: t}
+	if cache.TrySendThroughId() {
+		return []string{}
+	}
+
 	cleanTitle := strings.ReplaceAll(infoVideo.FullTitle, "#", "")
 
 	infoText := fmt.Sprintf("📺 Video: %s", cleanTitle)
@@ -204,6 +210,10 @@ func (t *Task) DownloadVideoUrl() []string {
 	}
 
 	t.Files = []string{filePath}
+	if cache.TrySendThroughMd5(filePath) {
+		t.Files = []string{}
+	}
+
 	return t.Files
 }
 
@@ -219,7 +229,7 @@ func (t *Task) DownloadTorrentFiles() []string {
 	// log
 	qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
 	t.App.SendLogToChannel(t.Message.From.ID, "doc",
-		fmt.Sprintf("upload torrent file | His turn: %d", qn.(int)+1), t.Message.Document.FileID)
+		fmt.Sprintf("upload torrent file | his turn: %d", qn.(int)+1), t.Message.Document.FileID)
 
 	t.Alloc("torrent")
 
@@ -292,9 +302,21 @@ func (t *Task) DownloadTorrentFiles() []string {
 
 	// todo if files are big, do something - t.Torrent.Process.Files()
 	//fiCh, _ := os.Stat(file)
-	//isBigFile := fiCh.Size() > 4e9 // more 4gb
+	//isBigFile := fiCh.Size() > 4e+9 // more 4gb
+
+	cache := Cache{Task: t}
 	for _, torFile := range t.Torrent.Process.Files() {
-		t.Files = append(t.Files, path.Clean(config.DirBot+"/torrent-client/"+torFile.Path()))
+		pathway := path.Clean(config.DirBot + "/torrent-client/" + torFile.Path())
+
+		if cache.TrySend("video", pathway) {
+			continue
+		}
+
+		if cache.TrySendThroughMd5(pathway) {
+			continue
+		}
+
+		t.Files = append(t.Files, pathway)
 	}
 
 	return t.Files

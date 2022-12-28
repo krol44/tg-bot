@@ -21,7 +21,7 @@ func main() {
 				app.SendLogToChannel(update.Message.From.ID, "mess", "Send message: "+update.Message.Text)
 			}
 
-			if update.Message.Text == "/start" {
+			if update.Message.Text == "/start" || update.Message.Text == "/info" {
 				app.InitUser(update.Message)
 			}
 

@@ -26,9 +26,10 @@ type Task struct {
 		TorrentProgress int64
 		TorrentUploaded int64
 	}
+	VideoUrlID string
 }
 
-func (t Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
+func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
 	mess, err := t.App.Bot.Send(ct)
 	if err != nil {
 		log.Error(ct, err)
@@ -75,7 +76,11 @@ func (t *Task) Alloc(typeDl string) {
 	t.App.SendLogToChannel(t.Message.From.ID, "mess", fmt.Sprintf("start download "+typeDl))
 }
 
-func (t Task) Cleaner() {
+func (t *Task) RemoveMessageEdit() {
+	_, _ = t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEditID))
+}
+
+func (t *Task) Cleaner() {
 	t.App.LockForRemove.Add(1)
 
 	log.Info("Folders cleaning...")

@@ -8,10 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
-const sign = "\n\n@TorPurrBot - download and convert\n Torrent, youtube, tiktok, other"
+const signAdvt = "\n\n@TorPurrBot - download and convert\n Torrent, youtube, tiktok, other"
 
 func (t Task) SendVideos(files []FileConverted) {
 	for _, v := range files {
@@ -23,7 +24,7 @@ func (t Task) SendVideos(files []FileConverted) {
 			tgbotapi.FilePath(v.FilePath))
 
 		video.SupportsStreaming = true
-		video.Caption = v.Name + sign
+		video.Caption = v.Name + signAdvt
 		if t.UserFromDB.Premium == 0 {
 			video.ProtectContent = true
 		}
@@ -57,15 +58,21 @@ func (t Task) SendVideos(files []FileConverted) {
 			return
 		} else {
 			stopAction = true
+
 			t.App.SendLogToChannel(t.Message.From.ID, "video", fmt.Sprintf("video file - "+v.Name),
 				sentVideo.Video.FileID)
+
+			Cache.Add(Cache{Task: &t}, sentVideo.Video.FileID, sentVideo.Video.FileSize, v.FilePathNative)
 		}
 	}
-
-	_, _ = t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEditID))
 }
 
 func (t Task) SendTorFiles() {
+	cache := Cache{Task: &t}
+	if cache.TrySend("doc", t.Torrent.Name+".torrent") {
+		return
+	}
+
 	zipName := t.UniqueId(t.Torrent.Name) + ".zip"
 	pathZip := config.DirBot + "/storage/" + zipName
 	archive, err := os.Create(pathZip)
@@ -83,18 +90,17 @@ func (t Task) SendTorFiles() {
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 			fmt.Sprintf("🔥 Ziping - %s", pathway)))
 
-		pathToZip := config.DirBot + "/torrent-client/" + pathway
-		_, err := os.Stat(pathToZip)
+		_, err := os.Stat(pathway)
 		if err != nil {
 			log.Error(err)
 		}
 
-		file, err := os.Open(pathToZip)
+		file, err := os.Open(pathway)
 		if err != nil {
 			log.Warning(err)
 		}
 
-		ctz, err := zipWriter.Create(pathway)
+		ctz, err := zipWriter.Create(strings.TrimLeft(pathway, config.DirBot+"/torrent-client/"))
 		if err != nil {
 			log.Warning(err)
 		}
@@ -134,7 +140,7 @@ func (t Task) SendTorFiles() {
 		doc := tgbotapi.NewDocument(t.Message.Chat.ID,
 			tgbotapi.FilePath(pathZip))
 
-		doc.Caption = t.Torrent.Name + sign
+		doc.Caption = t.Torrent.Name + signAdvt
 		if t.UserFromDB.Premium == 0 {
 			doc.ProtectContent = true
 		}
@@ -160,10 +166,10 @@ func (t Task) SendTorFiles() {
 		} else {
 			t.App.SendLogToChannel(t.Message.From.ID,
 				"doc", fmt.Sprintf("doc file - "+t.Torrent.Name), sentDoc.Document.FileID)
+
+			cache.Add(sentDoc.Document.FileID, sentDoc.Document.FileSize, t.Torrent.Name+".torrent")
 		}
 
 		stopAction = true
-
-		_, _ = t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, t.MessageEditID))
 	}
 }

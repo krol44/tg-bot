@@ -23,10 +23,11 @@ type Convert struct {
 }
 
 type FileConverted struct {
-	Name      string
-	FilePath  string
-	CoverPath string
-	CoverSize image.Point
+	Name           string
+	FilePath       string
+	FilePathNative string
+	CoverPath      string
+	CoverSize      image.Point
 }
 
 func (c Convert) Run() []FileConverted {
@@ -78,8 +79,8 @@ func (c Convert) Run() []FileConverted {
 		}
 
 		timeTotalAfter := c.TimeTotalRaw(fileConvertPathOut)
-		if timeTotal.Format("15:04") != timeTotalAfter.Format("15:04") {
-			mess := fmt.Sprintf("‼️ different time after convert, before %s sec - after %s sec",
+		if timeTotal.Format("15:04") != timeTotalAfter.Format("15:04") && c.Task.UserFromDB.Premium == 1 {
+			mess := fmt.Sprintf("‼️ different time (h:m) after convert, before %s - after %s",
 				timeTotal.Format("15:04"), timeTotalAfter.Format("15:04"))
 			log.Info(mess)
 			c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", mess)
@@ -109,7 +110,7 @@ func (c Convert) Run() []FileConverted {
 		}
 
 		c.FilesConverted = append(c.FilesConverted, FileConverted{filaName,
-			fileConvertPathOut, fileCoverPath, sizeCover})
+			fileConvertPathOut, fileConvertPath, fileCoverPath, sizeCover})
 	}
 
 	if len(c.ErrorAllowFormat) > 0 {
