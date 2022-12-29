@@ -31,8 +31,6 @@ type FileConverted struct {
 }
 
 func (c Convert) Run() []FileConverted {
-	c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
-
 	c.FilesConverted = make([]FileConverted, 0)
 	c.ErrorAllowFormat = make([]string, 0)
 
@@ -57,23 +55,27 @@ func (c Convert) Run() []FileConverted {
 			continue
 		}
 
-		filaName := strings.TrimSuffix(path.Base(fileConvertPath), path.Ext(path.Base(fileConvertPath)))
+		fileName := strings.TrimSuffix(path.Base(fileConvertPath), path.Ext(path.Base(fileConvertPath)))
+
+		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
+		_, _ = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
+			fmt.Sprintf("🌪 %s \n\n🔥 Convert Starting...", fileName)))
 
 		// create folder
-		folderConvert, errCreat := c.CreateFolderConvert(filaName)
+		folderConvert, errCreat := c.CreateFolderConvert(fileName)
 		if errCreat != nil {
 			log.Warning(errCreat)
 		}
 
-		pathwayNewFiles := folderConvert + "/" + filaName
+		pathwayNewFiles := folderConvert + "/" + fileName
 		fileCoverPath := pathwayNewFiles + ".jpg"
 		fileConvertPathOut := pathwayNewFiles + ".mp4"
 
 		timeTotal := c.TimeTotalRaw(fileConvertPath)
 
-		err = c.execConvert(bitrate, timeTotal, filaName, fileConvertPath, fileConvertPathOut)
+		err = c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
 		if err != nil {
-			c.Task.Send(tgbotapi.NewMessage(c.Task.Message.Chat.ID, "❗️ Video is bad - "+filaName))
+			c.Task.Send(tgbotapi.NewMessage(c.Task.Message.Chat.ID, "❗️ Video is bad - "+fileName))
 			log.Error(err)
 			continue
 		}
@@ -109,7 +111,7 @@ func (c Convert) Run() []FileConverted {
 			continue
 		}
 
-		c.FilesConverted = append(c.FilesConverted, FileConverted{filaName,
+		c.FilesConverted = append(c.FilesConverted, FileConverted{fileName,
 			fileConvertPathOut, fileConvertPath, fileCoverPath, sizeCover})
 	}
 
