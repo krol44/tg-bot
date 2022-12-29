@@ -113,7 +113,7 @@ func (a *App) ObserverQueue() {
 
 			if valIn.Message.Document != nil && valIn.Message.Document.MimeType == "application/x-bittorrent" {
 				files := task.DownloadTorrentFiles()
-				if files != nil && false {
+				if files != nil {
 					var c = Convert{Task: task}
 					if c.CheckExistVideo() {
 						task.SendVideos(c.Run())

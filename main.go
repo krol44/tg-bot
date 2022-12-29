@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+
 	app := Run()
 	go app.ObserverQueue()
 
@@ -23,6 +24,12 @@ func main() {
 
 			if update.Message.Text == "/start" || update.Message.Text == "/info" {
 				app.InitUser(update.Message)
+			}
+			if update.Message.Text == "/support" {
+				app.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Write a message right here"))
+			}
+			if update.Message.Text == "/stop" {
+				app.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Task stop"))
 			}
 
 			// long time
