@@ -35,7 +35,8 @@ func (c Convert) Run() []FileConverted {
 	c.ErrorAllowFormat = make([]string, 0)
 
 	// default bitrate for convert
-	bitrate := 6
+	var bitrate float64
+	bitrate = 6
 
 	for _, pathway := range c.Task.Files {
 		fileConvertPath := pathway
@@ -46,8 +47,8 @@ func (c Convert) Run() []FileConverted {
 			continue
 		}
 
-		if statFileConvert.Size() > 2e+9 {
-			bitrate = 3
+		if statFileConvert.Size() > 1e+9 {
+			bitrate = 1.5
 		}
 
 		if !c.Task.IsAllowFormatForConvert(fileConvertPath) {
@@ -123,7 +124,7 @@ func (c Convert) Run() []FileConverted {
 	return c.FilesConverted
 }
 
-func (c Convert) execConvert(rate int, timeTotal time.Time, fileName string, fileConvertPath string,
+func (c Convert) execConvert(rate float64, timeTotal time.Time, fileName string, fileConvertPath string,
 	fileConvertPathOut string) error {
 	// todo checking the h264_nvenc is alive
 	cv := "h264_nvenc"
@@ -145,9 +146,9 @@ func (c Convert) execConvert(rate int, timeTotal time.Time, fileName string, fil
 		"-t", "00:05:00",
 		"-fs", "1990M",
 		"-pix_fmt", "yuv420p",
-		"-b:v", fmt.Sprintf("%dM", rate),
-		"-maxrate", fmt.Sprintf("%dM", rate),
-		"-bufsize", fmt.Sprintf("%dM", rate/2),
+		"-b:v", fmt.Sprintf("%.1fM", rate),
+		"-maxrate", fmt.Sprintf("%.1fM", rate),
+		"-bufsize", fmt.Sprintf("%.1fM", rate/2),
 		// experimental
 		//"-bf:v", "0",
 		//"-profile:v", "high",
