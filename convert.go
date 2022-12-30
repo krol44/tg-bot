@@ -1,6 +1,5 @@
 package main
 
-import "C"
 import (
 	"fmt"
 	tgbotapi "github.com/krol44/telegram-bot-api"

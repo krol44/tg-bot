@@ -1,9 +1,9 @@
 FROM golang:1.18.2-buster as builder
 WORKDIR /app
-COPY go.mod ./
+COPY go.* ./
 RUN go mod download
 COPY . .
-RUN go build -buildvcs=false -o tor-purr-bot .
+RUN CGO_ENABLED=0 GOOS=linux go build -o tor-purr-bot tor-purr-bot
 
 FROM debian:buster-slim
 RUN apt update
