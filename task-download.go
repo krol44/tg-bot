@@ -298,7 +298,7 @@ func (t *Task) DownloadTorrentFiles() []string {
 	<-t.Torrent.Process.Complete.On()
 	t.Torrent.Process.Drop()
 
-	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, "✅ Torrent downloaded"))
+	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, "✅ Torrent downloaded, wait next step"))
 
 	// todo if files are big, do something - t.Torrent.Process.Files()
 	//fiCh, _ := os.Stat(file)

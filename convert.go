@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	tgbotapi "github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
 	"image"
 	"image/jpeg"
+	"math"
 	"os"
 	"os/exec"
 	"path"
@@ -33,10 +35,6 @@ func (c Convert) Run() []FileConverted {
 	c.FilesConverted = make([]FileConverted, 0)
 	c.ErrorAllowFormat = make([]string, 0)
 
-	// default bitrate for convert
-	var bitrate float64
-	bitrate = 6
-
 	for _, pathway := range c.Task.Files {
 		fileConvertPath := pathway
 
@@ -46,8 +44,13 @@ func (c Convert) Run() []FileConverted {
 			continue
 		}
 
-		if statFileConvert.Size() > 1e+9 {
-			bitrate = 1.5
+		infoVideo := c.GetInfoVideo(pathway)
+		bitrate, _ := strconv.Atoi(infoVideo.Format.BitRate)
+
+		if statFileConvert.Size() > 17e+8 {
+			// calc bitrate
+			dur, _ := strconv.ParseFloat(infoVideo.Format.Duration, 64)
+			bitrate = (int((1990*8192)/math.Round(dur)) - 192) * 1000
 		}
 
 		if !c.Task.IsAllowFormatForConvert(fileConvertPath) {
@@ -59,7 +62,7 @@ func (c Convert) Run() []FileConverted {
 
 		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
 		_, _ = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
-			fmt.Sprintf("🌪 %s \n\n🔥 Convert Starting...", fileName)))
+			fmt.Sprintf("🌪 %s \n\n🔥 Convert starting...", fileName)))
 
 		// create folder
 		folderConvert, errCreat := c.CreateFolderConvert(fileName)
@@ -123,7 +126,7 @@ func (c Convert) Run() []FileConverted {
 	return c.FilesConverted
 }
 
-func (c Convert) execConvert(rate float64, timeTotal time.Time, fileName string, fileConvertPath string,
+func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, fileConvertPath string,
 	fileConvertPathOut string) error {
 	// todo checking the h264_nvenc is alive
 	cv := "h264_nvenc"
@@ -135,7 +138,7 @@ func (c Convert) execConvert(rate float64, timeTotal time.Time, fileName string,
 
 	prepareArgs := []string{
 		"-protocol_whitelist", "file",
-		"-v", "warning", "-hide_banner", "-stats",
+		"-v", "quiet", "-hide_banner", "-stats",
 		"-i", fileConvertPath,
 		"-acodec", "aac",
 		"-c:v", cv,
@@ -145,9 +148,8 @@ func (c Convert) execConvert(rate float64, timeTotal time.Time, fileName string,
 		"-t", "00:05:00",
 		"-fs", "1990M",
 		"-pix_fmt", "yuv420p",
-		"-b:v", fmt.Sprintf("%.1fM", rate),
-		"-maxrate", fmt.Sprintf("%.1fM", rate),
-		"-bufsize", fmt.Sprintf("%.1fM", rate/2),
+		"-b:v", fmt.Sprintf("%d", bitrate),
+		"-b:a", "192k",
 		// experimental
 		//"-bf:v", "0",
 		//"-profile:v", "high",
@@ -171,7 +173,7 @@ func (c Convert) execConvert(rate float64, timeTotal time.Time, fileName string,
 		//}
 		args = append(args, pa)
 	}
-
+	log.Info(args)
 	cmd := exec.Command(ffmpegPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -308,4 +310,44 @@ func (c Convert) TimeTotalRaw(pathway string) time.Time {
 		log.Error(err)
 	}
 	return parse
+}
+
+type InfoVideo struct {
+	Format struct {
+		Duration       string `json:"duration"`
+		StartTime      string `json:"start_time"`
+		BitRate        string `json:"bit_rate"`
+		Filename       string `json:"filename"`
+		Size           string `json:"size"`
+		ProbeScore     int    `json:"probe_score"`
+		NbPrograms     int    `json:"nb_programs"`
+		FormatLongName string `json:"format_long_name"`
+		NbStreams      int    `json:"nb_streams"`
+		FormatName     string `json:"format_name"`
+		Tags           struct {
+			CreationTime string `json:"creation_time"`
+			Title        string `json:"title"`
+			Encoder      string `json:"encoder"`
+		} `json:"tags"`
+	} `json:"format"`
+}
+
+func (c Convert) GetInfoVideo(pathway string) InfoVideo {
+	var infoVideo InfoVideo
+
+	info, err := exec.Command("ffprobe",
+		"-v", "quiet",
+		"-print_format", "json",
+		"-show_format", pathway).Output()
+	if err != nil {
+		log.Error(err)
+	}
+
+	errUn := json.Unmarshal(info, &infoVideo)
+	if errUn != nil {
+		log.Error(err)
+		return InfoVideo{}
+	}
+
+	return infoVideo
 }
