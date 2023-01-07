@@ -98,16 +98,28 @@ func (a *App) ObserverQueue() {
 		cleanerWait.Add(1)
 
 		go func(valIn QueueMessages) {
+			// if fatal, execute cleaning
+			defer func(valIn QueueMessages) {
+				if r := recover(); r != nil {
+					// global queue
+					a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
+
+					cleanerWait.Done()
+					cleanerWait.Wait()
+
+					log.Warnf("Crash queue: %s", r)
+				}
+			}(valIn)
+
 			if !a.TaskAllowed(valIn.Message.Chat.ID) {
 				return
 			}
 
-			var UserFromDB User
-			_ = a.DB.Get(&UserFromDB, "SELECT premium, forward FROM users WHERE telegram_id = ?",
+			var userFromDB User
+			_ = a.DB.Get(&userFromDB, "SELECT premium, forward FROM users WHERE telegram_id = ?",
 				valIn.Message.From.ID)
 
-			task := Task{Message: valIn.Message, App: a, UserFromDB: UserFromDB}
-
+			task := Task{Message: valIn.Message, App: a, UserFromDB: userFromDB}
 			// global queue
 			a.ChatsWork.IncPlus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
@@ -139,6 +151,10 @@ func (a *App) ObserverQueue() {
 				task.RemoveMessageEdit()
 			}
 
+			if _, bo := task.App.ChatsWork.StopTasks.LoadAndDelete(task.Message.Chat.ID); bo {
+				task.Send(tgbotapi.NewMessage(task.Message.Chat.ID, "Task stopped"))
+			}
+
 			// global queue
 			a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
@@ -148,7 +164,6 @@ func (a *App) ObserverQueue() {
 			task.Cleaner()
 		}(val)
 	}
-
 }
 
 func (a *App) TaskAllowed(chatId int64) bool {

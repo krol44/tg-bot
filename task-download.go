@@ -170,10 +170,22 @@ func (t *Task) DownloadVideoUrl() []string {
 		if len(matches) == 2 {
 			percent = strings.TrimSpace(matches[1])
 		}
-		_, errEdit := t.App.Bot.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("🔽 %s \n\n🔥 Download progress: %s%%", cleanTitle, percent)))
-		if errEdit != nil {
-			log.Warning(errEdit)
+
+		mess := fmt.Sprintf("🔽 %s \n\n🔥 Download progress: %s%%", cleanTitle, percent)
+		if t.MessageTextLast != mess {
+			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, mess))
+			t.MessageTextLast = mess
+		}
+
+		if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+			warn := cmd.Process.Kill()
+			if warn != nil {
+				log.Warn(warn)
+			}
+
+			stopProtected = true
+
+			return nil
 		}
 
 		if percent == "100" {
@@ -187,8 +199,6 @@ func (t *Task) DownloadVideoUrl() []string {
 		log.Error(err)
 		return nil
 	}
-
-	stopProtected = true
 
 	dir, err := os.ReadDir(folder)
 	if err != nil {
@@ -286,10 +296,16 @@ func (t *Task) DownloadTorrentFiles() []string {
 				break
 			}
 
-			if time.Now().Second()%2 == 0 {
+			if time.Now().Second()%2 == 0 && t.MessageTextLast != stat {
 				t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, stat))
+				t.MessageTextLast = stat
 			}
 			time.Sleep(time.Second)
+
+			if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+				t.Torrent.Process.Complete.SetBool(true)
+				break
+			}
 		}
 	}()
 
@@ -297,6 +313,10 @@ func (t *Task) DownloadTorrentFiles() []string {
 
 	<-t.Torrent.Process.Complete.On()
 	t.Torrent.Process.Drop()
+
+	if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+		return nil
+	}
 
 	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, "✅ Torrent downloaded, wait next step"))
 

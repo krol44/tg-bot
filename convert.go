@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	tgbotapi "github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
@@ -78,6 +79,10 @@ func (c Convert) Run() []FileConverted {
 
 		err = c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
 		if err != nil {
+			if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
+				return nil
+			}
+
 			c.Task.Send(tgbotapi.NewMessage(c.Task.Message.Chat.ID, "❗️ Video is bad - "+fileName))
 			log.Error(err)
 			continue
@@ -173,7 +178,8 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 		//}
 		args = append(args, pa)
 	}
-	log.Info(args)
+
+	log.Debug(args)
 	cmd := exec.Command(ffmpegPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -187,6 +193,14 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 
 	tmpLast := ""
 	for {
+		if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
+			warn := cmd.Process.Kill()
+			if warn != nil {
+				log.Warn(warn)
+			}
+			return errors.New("force stop")
+		}
+
 		tmp := make([]byte, 1024)
 		_, err := stdout.Read(tmp)
 		if err != nil {

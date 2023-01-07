@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
 	app := Run()
 	go app.ObserverQueue()
 
@@ -29,7 +28,7 @@ func main() {
 				app.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Write a message right here"))
 			}
 			if update.Message.Text == "/stop" {
-				app.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Task stop"))
+				app.ChatsWork.StopTasks.Store(update.Message.Chat.ID, true)
 			}
 
 			// long time

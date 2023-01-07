@@ -26,11 +26,13 @@ type CacheRow struct {
 	DateCreate     string `db:"date_create"`
 }
 
-func (c Cache) Add(tgFileId string, tgFileSize int, NativeFilePath string) {
-	timeTotal := Convert.TimeTotalRaw(Convert{}, NativeFilePath)
-	s := timeTotal.Sub(time.Date(0000, 01, 01, 00, 00, 00, 0, time.UTC)).Seconds()
-	if c.Task.UserFromDB.Premium == 0 && s > 280 {
-		return
+func (c Cache) Add(typeCache string, tgFileId string, tgFileSize int, NativeFilePath string) {
+	if typeCache == "video" {
+		timeTotal := Convert.TimeTotalRaw(Convert{}, NativeFilePath)
+		s := timeTotal.Sub(time.Date(0000, 01, 01, 00, 00, 00, 0, time.UTC)).Seconds()
+		if c.Task.UserFromDB.Premium == 0 && s > 280 {
+			return
+		}
 	}
 
 	var md5Sum string

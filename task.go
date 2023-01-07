@@ -13,12 +13,13 @@ import (
 )
 
 type Task struct {
-	App           *App
-	Message       *tgbotapi.Message
-	Files         []string
-	MessageEditID int
-	UserFromDB    User
-	Torrent       struct {
+	App             *App
+	Message         *tgbotapi.Message
+	Files           []string
+	MessageEditID   int
+	MessageTextLast string
+	UserFromDB      User
+	Torrent         struct {
 		Name            string
 		Process         *torrent.Torrent
 		Progress        int64

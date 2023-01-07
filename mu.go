@@ -9,6 +9,8 @@ type ChatsWork struct {
 	chat        sync.Map
 	LenMu       sync.Mutex
 	LockIncPlus sync.Mutex
+
+	StopTasks sync.Map
 }
 
 func (c *ChatsWork) IncPlus(messId int, chatId int64) {

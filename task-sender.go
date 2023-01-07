@@ -35,6 +35,10 @@ func (t Task) SendVideos(files []FileConverted) {
 		stopAction := false
 		go func(stopAction *bool) {
 			for {
+				if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+					return
+				}
+
 				if *stopAction == true {
 					break
 				}
@@ -62,7 +66,7 @@ func (t Task) SendVideos(files []FileConverted) {
 			t.App.SendLogToChannel(t.Message.From.ID, "video", fmt.Sprintf("video file - "+v.Name),
 				sentVideo.Video.FileID)
 
-			Cache.Add(Cache{Task: &t}, sentVideo.Video.FileID, sentVideo.Video.FileSize, v.FilePathNative)
+			Cache.Add(Cache{Task: &t}, "video", sentVideo.Video.FileID, sentVideo.Video.FileSize, v.FilePathNative)
 		}
 	}
 }
@@ -87,6 +91,10 @@ func (t Task) SendTorFiles() {
 	})
 
 	for _, pathway := range t.Files {
+		if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+			return
+		}
+
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 			fmt.Sprintf("🔥 Ziping - %s", pathway)))
 
@@ -167,7 +175,7 @@ func (t Task) SendTorFiles() {
 			t.App.SendLogToChannel(t.Message.From.ID,
 				"doc", fmt.Sprintf("doc file - "+t.Torrent.Name), sentDoc.Document.FileID)
 
-			cache.Add(sentDoc.Document.FileID, sentDoc.Document.FileSize, t.Torrent.Name+".torrent")
+			cache.Add("doc", sentDoc.Document.FileID, sentDoc.Document.FileSize, t.Torrent.Name+".torrent")
 		}
 
 		stopAction = true
