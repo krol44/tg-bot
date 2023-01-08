@@ -64,7 +64,7 @@ func (t *Task) Alloc(typeDl string) {
 		messPremium := tgbotapi.NewMessage(t.Message.Chat.ID,
 			`‼️ You don't have a donation for us, only the first 5 minutes video is available and torrent in the zip archive don't available too
 
-		<a href="url-donate">Help us, subscribe and service will be more fantastical</a> 🔥
+		<a href="https://www.donationalerts.com/r/torpurrbot">Help us, subscribe and service will be more fantastical</a> 🔥
 
 		(Write your telegram username in the body message. After donation, you will access 30 days)`)
 		messPremium.ParseMode = tgbotapi.ModeHTML
