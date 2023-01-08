@@ -33,7 +33,7 @@ type User struct {
 	TelegramId int64  `db:"telegram_id"`
 	Name       string `db:"name"`
 	Premium    int    `db:"premium"`
-	Forward    int    `db:"forward"`
+	Block      int    `db:"block"`
 }
 
 func Run() App {
@@ -116,7 +116,7 @@ func (a *App) ObserverQueue() {
 			}
 
 			var userFromDB User
-			_ = a.DB.Get(&userFromDB, "SELECT premium, forward FROM users WHERE telegram_id = ?",
+			_ = a.DB.Get(&userFromDB, "SELECT premium FROM users WHERE telegram_id = ?",
 				valIn.Message.From.ID)
 
 			task := Task{Message: valIn.Message, App: a, UserFromDB: userFromDB}
@@ -253,6 +253,18 @@ func (a *App) Logs(message *tgbotapi.Message) {
 	if err != nil {
 		log.Error(err)
 	}
+}
+
+func (a *App) IsBlockUser(fromId int64) bool {
+	var userFromDB User
+	_ = a.DB.Get(&userFromDB, "SELECT block FROM users WHERE telegram_id = ?",
+		fromId)
+
+	if userFromDB.Block == 1 {
+		return true
+	}
+
+	return false
 }
 
 func (a *App) initFolders() {

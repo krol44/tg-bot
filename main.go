@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -14,11 +15,15 @@ func main() {
 
 	for update := range app.BotUpdates {
 		if update.Message != nil {
-			// Logs sqlite
+			//  logs sqlite
 			app.Logs(update.Message)
 
 			if update.Message.Text != "" {
 				app.SendLogToChannel(update.Message.From.ID, "mess", "Send message: "+update.Message.Text)
+			}
+
+			if app.IsBlockUser(update.Message.From.ID) {
+				continue
 			}
 
 			if update.Message.Text == "/start" || update.Message.Text == "/info" {
@@ -65,6 +70,20 @@ func main() {
 					pt := fmt.Sprintf("Premium is %s", premiumText)
 					app.SendLogToChannel(int64(whoId), "mess", pt)
 					_, _ = app.Bot.Send(tgbotapi.NewMessage(int64(whoId), pt))
+				}
+			}
+
+			if update.ChannelPost.ReplyToMessage != nil {
+				regx := regexp.MustCompile(` \((.*?)\) `)
+				matches := regx.FindStringSubmatch(update.ChannelPost.ReplyToMessage.Text)
+
+				if len(matches) == 2 {
+					replayChatId, _ := strconv.Atoi(matches[1])
+					_, err := app.Bot.Send(tgbotapi.NewMessage(int64(replayChatId),
+						"Support: "+update.ChannelPost.Text))
+					if err != nil {
+						log.Error(err)
+					}
 				}
 			}
 		}
