@@ -223,12 +223,6 @@ func (a *App) InitUser(message *tgbotapi.Message) {
 			log.Error(err)
 		}
 
-		_, err = a.DB.Exec(`INSERT INTO chats (chat_id, date_create)
-							VALUES (?, datetime('now'))`, message.Chat.ID)
-		if err != nil {
-			log.Error(err)
-		}
-
 		a.SendLogToChannel(message.From.ID, "mess", fmt.Sprintf("new user"))
 	}
 
@@ -243,7 +237,7 @@ func (a *App) InitUser(message *tgbotapi.Message) {
 	a.Bot.Send(mess)
 }
 
-func (a *App) Logs(message *tgbotapi.Message) {
+func (a *App) Logs(message any) {
 	marshal, err := json.Marshal(message)
 	if err != nil {
 		return
@@ -301,14 +295,6 @@ create table if not exists logs
     json             text,
     date_create 	 text
 );
-
-create table if not exists chats
-(
-    chat_id 		 BIGINT,
-    date_create 	 text
-);
-create unique index if not exists chats_chat_id_uindex
-    on chats (chat_id);
 
 create table if not exists cache
 (

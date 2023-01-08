@@ -37,6 +37,8 @@ func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
 		log.Infof("%+v", errors.WithStack(errors.New("Stacktrace")))
 	}
 
+	t.App.Logs(mess)
+
 	return mess
 }
 
