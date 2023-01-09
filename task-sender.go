@@ -17,8 +17,8 @@ const signAdvt = "\n\n@TorPurrBot - download and convert\n Torrent, youtube, tik
 func (t Task) SendVideos(files []FileConverted) {
 	for _, v := range files {
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("📲 Sending video - %s \n\n🍿 Time upload to the telegram ~ 1-7 minutes",
-				v.Name)))
+			fmt.Sprintf("📲 "+t.Lang("Sending video")+" - %s \n\n🍿 "+
+				t.Lang("Time upload to the telegram ~ 1-7 minutes"), v.Name)))
 
 		video := tgbotapi.NewVideo(t.Message.Chat.ID,
 			tgbotapi.FilePath(v.FilePath))
@@ -55,7 +55,7 @@ func (t Task) SendVideos(files []FileConverted) {
 			log.Error(err)
 
 			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-				"😞 Something wrong... We will be fixing it"))
+				"😞 "+t.Lang("Something wrong... We will be fixing it")))
 
 			t.App.SendLogToChannel(t.Message.From.ID, "mess",
 				fmt.Sprintf("video file send err\n\n%s", err))
@@ -125,25 +125,26 @@ func (t Task) SendTorFiles() {
 	fiCh, err := os.Stat(pathZip)
 	if err != nil {
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("😞 Something wrong... We will be fixing it")))
+			fmt.Sprintf("😞 "+t.Lang("Something wrong... We will be fixing it"))))
 		return
 	}
 	isBigFile := fiCh.Size() > 1999e6 // more 2gb
 
 	if isBigFile {
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("😔 Files in the torrent are too big, zip archive size available only no more than 2 gb")))
+			fmt.Sprintf("😔 "+
+				t.Lang("Files in the torrent are too big, zip archive size available only no more than 2 gb"))))
 	} else {
 		if t.UserFromDB.Premium == 0 {
 			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-				fmt.Sprintf("😔 You don't have a donation, file will not be sent")))
+				fmt.Sprintf("😔 "+t.Lang("File not sent"))))
 
 			return
 		}
 
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("📲 Sending zip - %s \n\n⏰ Time upload to the telegram ~ 1-7 minutes",
-				zipName)))
+			fmt.Sprintf("📲 "+t.Lang("Sending zip")+" - %s \n\n⏰ "+
+				t.Lang("Time upload to the telegram ~ 1-7 minutes"), zipName)))
 
 		doc := tgbotapi.NewDocument(t.Message.Chat.ID,
 			tgbotapi.FilePath(pathZip))

@@ -30,10 +30,11 @@ type QueueMessages struct {
 }
 
 type User struct {
-	TelegramId int64  `db:"telegram_id"`
-	Name       string `db:"name"`
-	Premium    int    `db:"premium"`
-	Block      int    `db:"block"`
+	TelegramId   int64  `db:"telegram_id"`
+	Name         string `db:"name"`
+	Premium      int    `db:"premium"`
+	Block        int    `db:"block"`
+	LanguageCode string `db:"language_code"`
 }
 
 func Run() App {
@@ -93,6 +94,31 @@ func Run() App {
 func (a *App) ObserverQueue() {
 	var cleanerWait sync.WaitGroup
 	for val := range a.Queue {
+		// set language
+		translate := &Translate{Code: val.Message.From.LanguageCode}
+
+		// commands
+		if val.Message.Text == "/start" || val.Message.Text == "/info" {
+			a.InitUser(val.Message, translate)
+			continue
+		}
+		if val.Message.Text == "/support" {
+			a.Bot.Send(tgbotapi.NewMessage(val.Message.Chat.ID, translate.Lang("Write a message right here")))
+			continue
+		}
+		if val.Message.Text == "/stop" {
+			a.ChatsWork.StopTasks.Store(val.Message.Chat.ID, true)
+			continue
+		}
+
+		// long task
+		if !(val.Message.Document != nil ||
+			strings.Contains(val.Message.Text, "youtube.com") ||
+			strings.Contains(val.Message.Text, "youtu.be") ||
+			strings.Contains(val.Message.Text, "tiktok.com")) {
+			continue
+		}
+
 		// lock when files are deleting
 		a.LockForRemove.Wait()
 		cleanerWait.Add(1)
@@ -111,15 +137,17 @@ func (a *App) ObserverQueue() {
 				}
 			}(valIn)
 
-			if !a.TaskAllowed(valIn.Message.Chat.ID) {
+			if !a.TaskAllowed(valIn.Message.Chat.ID, translate) {
 				return
 			}
 
 			var userFromDB User
-			_ = a.DB.Get(&userFromDB, "SELECT premium FROM users WHERE telegram_id = ?",
+			_ = a.DB.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = ?",
 				valIn.Message.From.ID)
 
-			task := Task{Message: valIn.Message, App: a, UserFromDB: userFromDB}
+			task := Task{Message: valIn.Message, App: a, UserFromDB: userFromDB, Translate: translate}
+			task.Translate.Code = userFromDB.LanguageCode
+
 			// global queue
 			a.ChatsWork.IncPlus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
@@ -152,7 +180,7 @@ func (a *App) ObserverQueue() {
 			}
 
 			if _, bo := task.App.ChatsWork.StopTasks.LoadAndDelete(task.Message.Chat.ID); bo {
-				task.Send(tgbotapi.NewMessage(task.Message.Chat.ID, "Task stopped"))
+				task.Send(tgbotapi.NewMessage(task.Message.Chat.ID, task.Lang("Task stopped")))
 			}
 
 			// global queue
@@ -166,12 +194,12 @@ func (a *App) ObserverQueue() {
 	}
 }
 
-func (a *App) TaskAllowed(chatId int64) bool {
+func (a *App) TaskAllowed(chatId int64, tr *Translate) bool {
 	//if config.IsDev {
 	//	return true
 	//}
 	if _, bo := a.ChatsWork.chat.Load(chatId); bo {
-		_, err := a.Bot.Send(tgbotapi.NewMessage(chatId, "❗️ Allowed one task"))
+		_, err := a.Bot.Send(tgbotapi.NewMessage(chatId, "❗️ "+tr.Lang("Allowed only one task")))
 		if err != nil {
 			log.Error(err)
 		}
@@ -209,7 +237,7 @@ func (a *App) SendLogToChannel(howId int64, typeSomething string, something ...s
 	}(a, typeSomething, something...)
 }
 
-func (a *App) InitUser(message *tgbotapi.Message) {
+func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
 
 	user := struct {
 		TelegramId int64 `db:"telegram_id"`
@@ -217,8 +245,9 @@ func (a *App) InitUser(message *tgbotapi.Message) {
 	_ = a.DB.Get(&user, "SELECT telegram_id FROM users WHERE telegram_id = ?", message.From.ID)
 
 	if user.TelegramId == 0 {
-		_, err := a.DB.Exec(`INSERT INTO users (telegram_id, name, date_create)
-							VALUES (?, ?, datetime('now'))`, message.From.ID, message.From.UserName)
+		_, err := a.DB.Exec(`INSERT INTO users (telegram_id, name, date_create, language_code)
+							VALUES (?, ?, datetime('now'), ?)`, message.From.ID, message.From.UserName,
+			message.From.LanguageCode)
 		if err != nil {
 			log.Error(err)
 		}
@@ -228,11 +257,11 @@ func (a *App) InitUser(message *tgbotapi.Message) {
 
 	video := tgbotapi.NewVideo(message.Chat.ID,
 		tgbotapi.FileID(config.WelcomeFileId))
-	video.Caption = "Just send me torrent file with the video files 😋"
+	video.Caption = tr.Lang("Just send me torrent file with the video files") + " 😋"
 	a.Bot.Send(video)
-	mess := tgbotapi.NewMessage(message.Chat.ID, "Or send me youtube, tiktok link :3\n"+
-		"Example: https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
-		"Example: https://vt.tiktok.com/ZS8jY2NVd")
+	mess := tgbotapi.NewMessage(message.Chat.ID, tr.Lang("Or send me youtube, tiktok url")+" :3\n"+
+		tr.Lang("Example")+": https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
+		tr.Lang("Example")+": https://vt.tiktok.com/ZS8jY2NVd")
 	mess.DisableWebPagePreview = true
 	a.Bot.Send(mess)
 }
@@ -275,13 +304,14 @@ func (a *App) initFolders() {
 
 func (a *App) initTables() {
 	if _, err := a.DB.Exec(`
-				create table if not exists users
+create table if not exists users
 (
-    telegram_id BIGINT,
-    name		text,
-    date_create text,
-    premium     int default 0,
-    forward     int default 0
+  telegram_id   BIGINT,
+  name          TEXT,
+  date_create   TEXT,
+  premium       INT     default 0,
+  block         INT     default 0,
+  language_code VARCHAR(10) default 'en'
 );
 
 create unique index if not exists users_telegram_id_uindex

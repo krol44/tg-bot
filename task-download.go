@@ -26,7 +26,7 @@ func (t *Task) DownloadVideoUrl() []string {
 
 	_, err := url.ParseRequestURI(urlVideo)
 	if err != nil {
-		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ Video url is bad"))
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")))
 		log.Error(err)
 		return nil
 	}
@@ -47,7 +47,7 @@ func (t *Task) DownloadVideoUrl() []string {
 	out, err := cmd.Output()
 
 	if err != nil {
-		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ Video url is bad 1"))
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")+" 1"))
 		log.Error(err)
 		return nil
 	}
@@ -61,7 +61,7 @@ func (t *Task) DownloadVideoUrl() []string {
 	}
 	err = json.Unmarshal(out, &infoVideo)
 	if err != nil {
-		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ Video url is bad 2"))
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")+" 2"))
 		log.Error(err)
 		return nil
 	}
@@ -70,7 +70,7 @@ func (t *Task) DownloadVideoUrl() []string {
 		infoVideo.FilesizeApprox = infoVideo.Filesize
 	}
 	if infoVideo.FilesizeApprox == 0 {
-		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ Video url is bad 3"))
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")+" 3"))
 		return nil
 	}
 
@@ -84,7 +84,7 @@ func (t *Task) DownloadVideoUrl() []string {
 
 	cleanTitle := strings.ReplaceAll(infoVideo.FullTitle, "#", "")
 
-	infoText := fmt.Sprintf("📺 Video: %s", cleanTitle)
+	infoText := fmt.Sprintf("📺 "+t.Lang("Video")+": %s", cleanTitle)
 	messInfo := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, infoText))
 	// pin
 	pinChatInfoMess := tgbotapi.PinChatMessageConfig{
@@ -129,7 +129,7 @@ func (t *Task) DownloadVideoUrl() []string {
 			if sizeSave == size {
 				cmd.Process.Kill()
 				log.Warning("kill cmd download video url")
-				t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ Video url is bad 4"))
+				t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")+" 4"))
 				break
 			}
 			sizeSave = size
@@ -171,7 +171,7 @@ func (t *Task) DownloadVideoUrl() []string {
 			percent = strings.TrimSpace(matches[1])
 		}
 
-		mess := fmt.Sprintf("🔽 %s \n\n🔥 Download progress: %s%%", cleanTitle, percent)
+		mess := fmt.Sprintf("🔽 %s \n\n🔥 "+t.Lang("Download progress")+": %s%%", cleanTitle, percent)
 		if t.MessageTextLast != mess {
 			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, mess))
 			t.MessageTextLast = mess
@@ -259,7 +259,7 @@ func (t *Task) DownloadTorrentFiles() []string {
 
 	t.Torrent.Name = t.Torrent.Process.Info().BestName()
 
-	infoText := fmt.Sprintf("🎈 Torrent: %s", t.Torrent.Name)
+	infoText := fmt.Sprintf("🎈 "+t.Lang("Torrent")+": %s", t.Torrent.Name)
 
 	t.Torrent.Process.Info()
 
@@ -274,7 +274,7 @@ func (t *Task) DownloadTorrentFiles() []string {
 			}
 		}
 		if listFiles != "" {
-			infoText += fmt.Sprintf("\n\n📋 List of files:\n") + listFiles
+			infoText += fmt.Sprintf("\n\n📋 "+t.Lang("List of files")+":\n") + listFiles
 		}
 	}
 
@@ -318,7 +318,8 @@ func (t *Task) DownloadTorrentFiles() []string {
 		return nil
 	}
 
-	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, "✅ Torrent downloaded, wait next step"))
+	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
+		"✅ "+t.Lang("Torrent downloaded, wait next step")))
 
 	// todo if files are big, do something - t.Torrent.Process.Files()
 	//fiCh, _ := os.Stat(file)
@@ -365,12 +366,13 @@ func (t *Task) statDlTor() (string, float64) {
 		percentage = float64(t.Torrent.Process.BytesCompleted()) / float64(ctlInfo.TotalLength()) * 100
 	}
 
-	stat := fmt.Sprintf("🔥 Progress: \t%s / %s  %.2f%%\n\n🔽 Download speed: %s",
+	stat := fmt.Sprintf(
+		"🔥 "+t.Lang("Progress")+": \t%s / %s  %.2f%%\n\n🔽 "+t.Lang("Download speed")+": %s",
 		complete, size, percentage, downloadSpeed)
 
 	// if it needs
 	if uploadProgress > 0 {
-		stat += fmt.Sprintf("\n\n🔼 Upload speed: \t%s", uploadSpeed)
+		stat += fmt.Sprintf("\n\n🔼 "+t.Lang("Upload speed")+": \t%s", uploadSpeed)
 	}
 
 	return stat, percentage

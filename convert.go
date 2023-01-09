@@ -63,7 +63,7 @@ func (c Convert) Run() []FileConverted {
 
 		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
 		_, _ = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
-			fmt.Sprintf("🌪 %s \n\n🔥 Convert starting...", fileName)))
+			fmt.Sprintf("🌪 %s \n\n🔥 "+c.Task.Lang("Convert starting")+"...", fileName)))
 
 		// create folder
 		folderConvert, errCreat := c.CreateFolderConvert(fileName)
@@ -83,7 +83,8 @@ func (c Convert) Run() []FileConverted {
 				return nil
 			}
 
-			c.Task.Send(tgbotapi.NewMessage(c.Task.Message.Chat.ID, "❗️ Video is bad - "+fileName))
+			c.Task.Send(tgbotapi.NewMessage(
+				c.Task.Message.Chat.ID, "❗️ "+c.Task.Lang("Video is bad")+" - "+fileName))
 			log.Error(err)
 			continue
 		}
@@ -224,7 +225,8 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 			100-(timeTotal.Sub(timeLeft).Seconds()/timeTotal.Sub(timeNull).Seconds())*100), 64)
 
 		_, errEdit := c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
-			fmt.Sprintf("🌪 %s \n\n🔥 Convert progress: %.2f%%", fileName, PercentConvert)))
+			fmt.Sprintf("🌪 %s \n\n🔥 "+c.Task.Lang("Convert progress")+": %.2f%%",
+				fileName, PercentConvert)))
 
 		if errEdit != nil {
 			log.Warning(errEdit)

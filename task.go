@@ -19,6 +19,7 @@ type Task struct {
 	MessageEditID   int
 	MessageTextLast string
 	UserFromDB      User
+	Translate       *Translate
 	Torrent         struct {
 		Name            string
 		Process         *torrent.Torrent
@@ -44,7 +45,8 @@ func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
 
 func (t *Task) Alloc(typeDl string) {
 	// creating edit message
-	messStat := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 Download is starting soon..."))
+	messStat := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 "+t.Lang("Download is starting soon")+
+		"..."))
 	t.MessageEditID = messStat.MessageID
 
 	for {
@@ -54,19 +56,22 @@ func (t *Task) Alloc(typeDl string) {
 			break
 		}
 
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("🍀 Download is starting soon...\n\n🚦 Your queue: %d", qn.(int)-config.MaxTasks+1)))
+		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, fmt.Sprintf(
+			"🍀 "+t.Lang("Download is starting soon")+"...\n\n🚦 "+t.Lang("Your queue")+": %d",
+			qn.(int)-config.MaxTasks+1)))
 
 		time.Sleep(4 * time.Second)
 	}
 
 	if t.UserFromDB.Premium == 0 {
-		messPremium := tgbotapi.NewMessage(t.Message.Chat.ID,
-			`‼️ You don't have a donation for us, only the first 5 minutes video is available and torrent in the zip archive don't available too
-
-		<a href="https://www.donationalerts.com/r/torpurrbot">Help us, subscribe and service will be more fantastical</a> 🔥
-
-		(Write your telegram username in the body message. After donation, you will access 30 days)`)
+		messPremium := tgbotapi.NewMessage(t.Message.Chat.ID, "‼️ "+
+			t.Lang("Only the first 5 minutes video is "+
+				"available and torrent in the zip archive don't available")+"\n\n"+
+			fmt.Sprintf(`<a href="%s">%s</a>`,
+				"https://www.donationalerts.com/r/torpurrbot",
+				t.Lang("To donate, for to improve the bot"))+" 🔥\n"+
+			"("+t.Lang("Write your telegram username in the body message."+
+			" After donation, you will get full access for 30 days")+")")
 		messPremium.ParseMode = tgbotapi.ModeHTML
 		t.Send(messPremium)
 
@@ -77,6 +82,10 @@ func (t *Task) Alloc(typeDl string) {
 
 	// log
 	t.App.SendLogToChannel(t.Message.From.ID, "mess", fmt.Sprintf("start download "+typeDl))
+}
+
+func (t *Task) Lang(str string) string {
+	return t.Translate.Lang(str)
 }
 
 func (t *Task) RemoveMessageEdit() {
