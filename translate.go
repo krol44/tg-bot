@@ -64,7 +64,7 @@ func (t *Translate) Lang(str string) string {
 			"ru": "Ваша очередь",
 		},
 		"Only the first 5 minutes video is available and torrent in the zip archive don't available": {
-			"ru": "Только первые 5 минут видео доступны, торрент файлы в zip архиве не доступны",
+			"ru": "Только первые 5 минут видео доступны, торрент файлы в zip архиве недоступны",
 		},
 		"To donate, for to improve the bot": {
 			"ru": "Пожертвовать, чтобы улучшить бота",

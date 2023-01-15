@@ -77,6 +77,7 @@ func (c Convert) Run() []FileConverted {
 
 		timeTotal := c.TimeTotalRaw(fileConvertPath)
 
+		// exec
 		err = c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
 		if err != nil {
 			if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
@@ -180,7 +181,7 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 		args = append(args, pa)
 	}
 
-	log.Debug(args)
+	log.Info(args)
 	cmd := exec.Command(ffmpegPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
