@@ -72,8 +72,8 @@ func (t *Translate) Lang(str string) string {
 		"Write your telegram username in the body message. After donation, you will get full access for 30 days": {
 			"ru": "Напишите telegram имя в тело сообщения. После пожертвования, Вы получите полный доступ на 30 дней",
 		},
-		"Convert starting": {
-			"ru": "Конверт скоро запустится",
+		"Convert is starting": {
+			"ru": "Конвертируем",
 		},
 		"Video is bad": {
 			"ru": "Плохое видео",

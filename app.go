@@ -88,6 +88,12 @@ func Run() App {
 		os.Exit(1)
 	}
 
+	// check nvenc
+	ch := Convert{}.healthNvenc()
+	if !ch {
+		app.SendLogToChannel(0, "mess", "nvenc in container - error")
+	}
+
 	return app
 }
 

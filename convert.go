@@ -51,7 +51,7 @@ func (c Convert) Run() []FileConverted {
 		if statFileConvert.Size() > 17e+8 {
 			// calc bitrate
 			dur, _ := strconv.ParseFloat(infoVideo.Format.Duration, 64)
-			bitrate = (int((1990*8192)/math.Round(dur)) - 192) * 1000
+			bitrate = (int((1990*8192)/math.Round(dur)) - 192*2) * 1000
 		}
 
 		if !c.Task.IsAllowFormatForConvert(fileConvertPath) {
@@ -63,7 +63,7 @@ func (c Convert) Run() []FileConverted {
 
 		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
 		_, _ = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
-			fmt.Sprintf("🌪 %s \n\n🔥 "+c.Task.Lang("Convert starting")+"...", fileName)))
+			fmt.Sprintf("🌪 %s \n\n🔥 "+c.Task.Lang("Convert is starting")+"...", fileName)))
 
 		// create folder
 		folderConvert, errCreat := c.CreateFolderConvert(fileName)
@@ -135,17 +135,21 @@ func (c Convert) Run() []FileConverted {
 
 func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, fileConvertPath string,
 	fileConvertPathOut string) error {
-	// todo checking the h264_nvenc is alive
-	cv := "h264_nvenc"
 	ffmpegPath := "./ffmpeg"
 	if config.IsDev {
-		cv = "h264"
 		ffmpegPath = "ffmpeg"
+	}
+
+	cv := "h264_nvenc"
+	if !c.healthNvenc() {
+		c.Task.App.SendLogToChannel(0, "mess", "nvenc in container - error")
+		cv = "h264"
 	}
 
 	prepareArgs := []string{
 		"-protocol_whitelist", "file",
-		"-v", "quiet", "-hide_banner", "-stats",
+		"-v", "quiet",
+		"-hide_banner", "-stats",
 		"-i", fileConvertPath,
 		"-acodec", "aac",
 		"-c:v", cv,
@@ -367,4 +371,24 @@ func (c Convert) GetInfoVideo(pathway string) InfoVideo {
 	}
 
 	return infoVideo
+}
+
+func (c Convert) healthNvenc() bool {
+	ffmpegPath := "./ffmpeg"
+	if config.IsDev {
+		ffmpegPath = "ffmpeg"
+	}
+	info, err := exec.Command(ffmpegPath,
+		"-v", "quiet",
+		"-h", "encoder=h264_nvenc").Output()
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+
+	if strings.Contains(string(info), "Encoder h264_nvenc []:") {
+		return true
+	}
+
+	return false
 }
