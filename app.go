@@ -160,7 +160,7 @@ func (a *App) ObserverQueue() {
 			if valIn.Message.Document != nil && valIn.Message.Document.MimeType == "application/x-bittorrent" {
 				files := task.DownloadTorrentFiles()
 				if files != nil {
-					var c = Convert{Task: task}
+					var c = Convert{Task: task, IsTorrent: true}
 					if c.CheckExistVideo() {
 						task.SendVideos(c.Run())
 					} else {
@@ -176,7 +176,7 @@ func (a *App) ObserverQueue() {
 				strings.Contains(valIn.Message.Text, "tiktok.com") {
 				file := task.DownloadVideoUrl()
 				if file != nil {
-					var c = Convert{Task: task}
+					var c = Convert{Task: task, IsTorrent: false}
 					if c.CheckExistVideo() {
 						task.SendVideos(c.Run())
 					}

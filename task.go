@@ -63,7 +63,7 @@ func (t *Task) Alloc(typeDl string) {
 		time.Sleep(4 * time.Second)
 	}
 
-	if t.UserFromDB.Premium == 0 {
+	if t.UserFromDB.Premium == 0 && typeDl == "torrent" {
 		messPremium := tgbotapi.NewMessage(t.Message.Chat.ID, "‼️ "+
 			t.Lang("Only the first 5 minutes video is "+
 				"available and torrent in the zip archive don't available")+"\n\n"+

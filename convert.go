@@ -22,6 +22,7 @@ type Convert struct {
 	Task             Task
 	FilesConverted   []FileConverted
 	ErrorAllowFormat []string
+	IsTorrent        bool
 }
 
 type FileConverted struct {
@@ -171,6 +172,12 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 	var args []string
 	for _, pa := range prepareArgs {
 		if c.Task.UserFromDB.Premium == 1 && (strings.Contains(pa, "-ss") ||
+			strings.Contains(pa, "00:00:00") ||
+			strings.Contains(pa, "-t") ||
+			strings.Contains(pa, "00:05:00")) {
+			continue
+		}
+		if !c.IsTorrent && (strings.Contains(pa, "-ss") ||
 			strings.Contains(pa, "00:00:00") ||
 			strings.Contains(pa, "-t") ||
 			strings.Contains(pa, "00:05:00")) {
