@@ -219,6 +219,8 @@ func (t *Task) DownloadVideoUrl() []string {
 		break
 	}
 
+	stopProtected = true
+
 	t.Files = []string{filePath}
 	if cache.TrySendThroughMd5(filePath) {
 		t.Files = []string{}
@@ -228,23 +230,39 @@ func (t *Task) DownloadVideoUrl() []string {
 }
 
 func (t *Task) DownloadTorrentFiles() []string {
-	// todo t.Torrent.Process, _ := client.AddMagnet("magnet:?xt=urn:btih:....")
-	file, err := t.App.Bot.GetFile(tgbotapi.FileConfig{FileID: t.Message.Document.FileID})
+	isMagnet := strings.Contains(t.Message.Text, "magnet:?xt=")
 
-	if err != nil {
-		log.Warning(err)
-		return nil
-	}
+	var (
+		file tgbotapi.File
+		err  error
+	)
 
-	// log
 	qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
-	t.App.SendLogToChannel(t.Message.From.ID, "doc",
-		fmt.Sprintf("upload torrent file | his turn: %d", qn.(int)+1), t.Message.Document.FileID)
+	if !isMagnet {
+		// todo t.Torrent.Process, _ := client.AddMagnet("magnet:?xt=urn:btih:....")
+		file, err = t.App.Bot.GetFile(tgbotapi.FileConfig{FileID: t.Message.Document.FileID})
+
+		if err != nil {
+			log.Warning(err)
+			return nil
+		}
+		// log
+		t.App.SendLogToChannel(t.Message.From.ID, "doc",
+			fmt.Sprintf("upload torrent file | his turn: %d", qn.(int)+1), t.Message.Document.FileID)
+	} else {
+		// log
+		t.App.SendLogToChannel(t.Message.From.ID, "mess",
+			fmt.Sprintf("torrent magnet | his turn: %d", qn.(int)+1))
+	}
 
 	t.Alloc("torrent")
 
-	t.Torrent.Process, err = t.App.TorClient.AddTorrentFromFile(config.TgPathLocal + "/" + config.BotToken +
-		"/" + file.FilePath)
+	if !isMagnet {
+		t.Torrent.Process, err = t.App.TorClient.AddTorrentFromFile(config.TgPathLocal + "/" + config.BotToken +
+			"/" + file.FilePath)
+	} else {
+		t.Torrent.Process, err = t.App.TorClient.AddMagnet(t.Message.Text)
+	}
 	if err != nil {
 		log.Error(err)
 		return nil

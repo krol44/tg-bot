@@ -121,7 +121,8 @@ func (a *App) ObserverQueue() {
 		if !(val.Message.Document != nil ||
 			strings.Contains(val.Message.Text, "youtube.com") ||
 			strings.Contains(val.Message.Text, "youtu.be") ||
-			strings.Contains(val.Message.Text, "tiktok.com")) {
+			strings.Contains(val.Message.Text, "tiktok.com") ||
+			strings.Contains(val.Message.Text, "magnet:?xt=")) {
 			continue
 		}
 
@@ -157,7 +158,8 @@ func (a *App) ObserverQueue() {
 			// global queue
 			a.ChatsWork.IncPlus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
-			if valIn.Message.Document != nil && valIn.Message.Document.MimeType == "application/x-bittorrent" {
+			if (valIn.Message.Document != nil && valIn.Message.Document.MimeType == "application/x-bittorrent") ||
+				strings.Contains(valIn.Message.Text, "magnet:?xt=") {
 				files := task.DownloadTorrentFiles()
 				if files != nil {
 					var c = Convert{Task: task, IsTorrent: true}

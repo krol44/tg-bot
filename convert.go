@@ -381,6 +381,16 @@ func (c Convert) GetInfoVideo(pathway string) InfoVideo {
 }
 
 func (c Convert) healthNvenc() bool {
+	infoSmi, err := exec.Command("/usr/bin/nvidia-smi").Output()
+	if err != nil {
+		log.Warn(err)
+		return false
+	}
+
+	if strings.Contains(string(infoSmi), "Failed to initialize NVML") {
+		return false
+	}
+
 	ffmpegPath := "./ffmpeg"
 	if config.IsDev {
 		ffmpegPath = "ffmpeg"
@@ -389,7 +399,7 @@ func (c Convert) healthNvenc() bool {
 		"-v", "quiet",
 		"-h", "encoder=h264_nvenc").Output()
 	if err != nil {
-		log.Error(err)
+		log.Warn(err)
 		return false
 	}
 
