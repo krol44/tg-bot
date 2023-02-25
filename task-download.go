@@ -109,7 +109,7 @@ func (t *Task) DownloadVideoUrl() []string {
 		//"--write-thumbnail", "--convert-thumbnails", "jpg",
 		"--sponsorblock-mark", "all",
 		"-f", "bv+ba/b",
-		"-o", fmt.Sprintf("%s/%%(title)s - %%(upload_date)s.%%(ext)s", folder),
+		"-o", fmt.Sprintf("%s/%%(title).50s - %%(upload_date)s.%%(ext)s", folder),
 		urlVideo,
 	}
 
