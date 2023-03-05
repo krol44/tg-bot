@@ -26,7 +26,7 @@ services:
       dockerfile: ./Dockerfile
     cpu_count: 8
     depends_on:
-      - telegram-api-bot
+      - telegram-api
     runtime: nvidia
     environment:
       TZ: "Europe/Moscow"
@@ -39,7 +39,7 @@ services:
       DIR_BOT: "/bot-data"
       DIR_DB: "/bot-db"
       DOWNLOAD_LIMIT: ${DOWNLOAD_LIMIT}
-      TG_API_ENDPOINT: telegram-api-bot:8081
+      TG_API_ENDPOINT: telegram-api:8081
       TG_PATH_LOCAL: "/telegram-bot-api-data"
       WELCOME_VIDEO_ID: ${WELCOME_VIDEO_ID}
     volumes:
