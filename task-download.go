@@ -109,7 +109,8 @@ func (t *Task) DownloadVideoUrl() []string {
 		//"--write-thumbnail", "--convert-thumbnails", "jpg",
 		"--sponsorblock-mark", "all",
 		"-f", "bv+ba/b",
-		"-o", fmt.Sprintf("%s/%%(title).50s - %%(upload_date)s.%%(ext)s", folder),
+		"-S", "filesize:1990M",
+		"-o", fmt.Sprintf("%s/%%(title).100s - %%(upload_date)s.%%(ext)s", folder),
 		urlVideo,
 	}
 
@@ -152,8 +153,7 @@ func (t *Task) DownloadVideoUrl() []string {
 		tmp := make([]byte, 1024*400)
 		_, err := stdout.Read(tmp)
 		if err != nil {
-			log.Info(string(tmp))
-			log.Warning(err)
+			log.Warn(err)
 			break
 		}
 
@@ -239,7 +239,6 @@ func (t *Task) DownloadTorrentFiles() []string {
 
 	qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
 	if !isMagnet {
-		// todo t.Torrent.Process, _ := client.AddMagnet("magnet:?xt=urn:btih:....")
 		file, err = t.App.Bot.GetFile(tgbotapi.FileConfig{FileID: t.Message.Document.FileID})
 
 		if err != nil {
@@ -339,13 +338,17 @@ func (t *Task) DownloadTorrentFiles() []string {
 	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 		"✅ "+t.Lang("Torrent downloaded, wait next step")))
 
-	// todo if files are big, do something - t.Torrent.Process.Files()
-	//fiCh, _ := os.Stat(file)
-	//isBigFile := fiCh.Size() > 4e+9 // more 4gb
-
 	cache := Cache{Task: t}
 	for _, torFile := range t.Torrent.Process.Files() {
 		pathway := path.Clean(config.DirBot + "/torrent-client/" + torFile.Path())
+
+		fiCh, _ := os.Stat(pathway)
+		if fiCh.Size() > 2e+9 {
+			t.Send(tgbotapi.NewMessage(t.Message.Chat.ID,
+				fmt.Sprintf("❗ "+t.Lang("%s - File is more 2gb, will be skipped"), path.Base(pathway))))
+			time.Sleep(time.Second * 2)
+			continue
+		}
 
 		if cache.TrySend("video", pathway) {
 			continue

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+docker compose -f dc-without-vpn.yml --env-file ./.env.secrets down --volumes --timeout 10
+docker compose -f dc-without-vpn.yml --env-file ./.env.secrets up --build -d

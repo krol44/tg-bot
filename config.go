@@ -35,22 +35,20 @@ type Struct struct {
 var config Struct
 
 func init() {
-	dev := os.Getenv("dev") == "true"
-	dl, _ := strconv.Atoi(os.Getenv("download_limit"))
-	chatIdChannelLog, _ := strconv.ParseInt(os.Getenv("chat_id_channel_log"), 10, 64)
-	botDebug := os.Getenv("bot_debug") == "true"
+	dl, _ := strconv.Atoi(os.Getenv("DOWNLOAD_LIMIT"))
+	chatIdChannelLog, _ := strconv.ParseInt(os.Getenv("CHAT_ID_CHANNEL_LOG"), 10, 64)
 
 	config = Struct{
-		dev,
+		os.Getenv("dev") == "true",
 		chatIdChannelLog,
-		os.Getenv("dir_bot"),
-		os.Getenv("dir_db"),
+		os.Getenv("DIR_BOT"),
+		os.Getenv("DIR_DB"),
 		dl,
-		os.Getenv("welcome_video_id"),
-		botDebug,
-		os.Getenv("bot_token"),
-		os.Getenv("tg_path_local"),
-		"http://" + os.Getenv("tg_api_endpoint") + "/bot%s/%s",
+		os.Getenv("WELCOME_VIDEO_ID"),
+		os.Getenv("BOT_DEBUG") == "true",
+		os.Getenv("BOT_TOKEN"),
+		os.Getenv("TG_PATH_LOCAL"),
+		"http://" + os.Getenv("TG_API_ENDPOINT") + "/bot%s/%s",
 		[]string{".avi", ".mkv", ".mp4", ".MP4", ".m4v", ".flv", ".TS", ".ts", ".mov", ".wmv", ".webm"},
 		2,
 		[]string{

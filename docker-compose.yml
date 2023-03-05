@@ -1,0 +1,76 @@
+version: "2.13.0"
+services:
+  tor-purr-bot-vpn:
+    image: cmulk/wireguard-docker:alpine
+    container_name: tor-purr-bot-vpn
+    privileged: true
+    cap_add:
+      - net_admin
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    networks:
+      - default
+    volumes:
+      - ./wireguard/wg0.conf:/etc/wireguard/wg0.conf
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    restart: always
+  telegram-api:
+    image: aiogram/telegram-bot-api
+    depends_on:
+      - tor-purr-bot-vpn
+    network_mode: "service:tor-purr-bot-vpn"
+    environment:
+      TELEGRAM_STAT: ${TELEGRAM_STAT}
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH}
+    volumes:
+      - type: bind
+        source: ${STORAGE_PATH}/telegram-bot-api-data
+        target: /var/lib/telegram-bot-api
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    restart: always
+  purr-purr:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    cpu_count: 8
+    depends_on:
+      - tor-purr-bot-vpn
+      - telegram-api
+    network_mode: "service:tor-purr-bot-vpn"
+    runtime: nvidia
+    environment:
+      TZ: "Europe/Moscow"
+      NVIDIA_VISIBLE_DEVICES: "all"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility,video"
+      DEV: ${DEV}
+      BOT_DEBUG: ${BOT_DEBUG}
+      BOT_TOKEN: ${BOT_TOKEN}
+      CHAT_ID_CHANNEL_LOG: ${CHAT_ID_CHANNEL_LOG}
+      DIR_BOT: "/bot-data"
+      DIR_DB: "/bot-db"
+      DOWNLOAD_LIMIT: ${DOWNLOAD_LIMIT}
+      TG_API_ENDPOINT: tor-purr-bot-vpn:8081
+      TG_PATH_LOCAL: "/telegram-bot-api-data"
+      WELCOME_VIDEO_ID: ${WELCOME_VIDEO_ID}
+    volumes:
+      - type: bind
+        source: ${STORAGE_PATH}/bot-data
+        target: /bot-data
+      - type: bind
+        source: ${STORAGE_PATH}/telegram-bot-api-data
+        target: /telegram-bot-api-data
+      - type: bind
+        source: ${STORAGE_PATH}/bot-db
+        target: /bot-db
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    restart: unless-stopped

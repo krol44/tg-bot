@@ -1,3 +1,5 @@
 .idea
-/docker-start.sh
+.DS_Store
 /data
+.env.secrets
+wireguard/wg0.conf

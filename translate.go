@@ -93,11 +93,14 @@ func (t *Translate) Lang(str string) string {
 		"Files in the torrent are too big, zip archive size available only no more than 2 gb": {
 			"ru": "Файлы в торренте слишком большие, zip архив должен быть не больше 2 гигабайт",
 		},
-		"File not sent": {
-			"ru": "Файл не отправлен",
-		},
 		"Sending zip": {
 			"ru": "Отправка zip",
+		},
+		"Video files not found in a torrent": {
+			"ru": "Видео файлы не найдены в торренте",
+		},
+		"File %s is more 2gb, will be skipped": {
+			"ru": "Файл %s больше 2gb, будет пропущен",
 		},
 	}
 

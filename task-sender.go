@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const signAdvt = "\n\n@TorPurrBot - download and convert\n Torrent, youtube, tiktok, other"
+const signAdvt = "\n\n@TorPurrBot - Download Torrent video, YouTube, TikTok, other"
 
 func (t Task) SendVideos(files []FileConverted) {
 	for _, v := range files {
@@ -25,9 +25,6 @@ func (t Task) SendVideos(files []FileConverted) {
 
 		video.SupportsStreaming = true
 		video.Caption = v.Name + signAdvt
-		if t.UserFromDB.Premium == 0 {
-			video.ProtectContent = true
-		}
 		video.Thumb = tgbotapi.FilePath(v.CoverPath)
 		video.Width = v.CoverSize.X
 		video.Height = v.CoverSize.Y
@@ -66,8 +63,10 @@ func (t Task) SendVideos(files []FileConverted) {
 			t.App.SendLogToChannel(t.Message.From.ID, "video", fmt.Sprintf("video file - "+v.Name),
 				sentVideo.Video.FileID)
 
-			Cache.Add(Cache{Task: &t}, "video", sentVideo.Video.FileID, sentVideo.Video.FileSize, v.FilePathNative)
+			Cache.Add(Cache{Task: &t}, sentVideo.Video.FileID, sentVideo.Video.FileSize, v.FilePathNative)
 		}
+
+		time.Sleep(time.Second * 5)
 	}
 }
 
@@ -135,13 +134,6 @@ func (t Task) SendTorFiles() {
 			fmt.Sprintf("😔 "+
 				t.Lang("Files in the torrent are too big, zip archive size available only no more than 2 gb"))))
 	} else {
-		if t.UserFromDB.Premium == 0 {
-			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-				fmt.Sprintf("😔 "+t.Lang("File not sent"))))
-
-			return
-		}
-
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 			fmt.Sprintf("📲 "+t.Lang("Sending zip")+" - %s \n\n⏰ "+
 				t.Lang("Time upload to the telegram ~ 1-7 minutes"), zipName)))
@@ -150,9 +142,6 @@ func (t Task) SendTorFiles() {
 			tgbotapi.FilePath(pathZip))
 
 		doc.Caption = t.Torrent.Name + signAdvt
-		if t.UserFromDB.Premium == 0 {
-			doc.ProtectContent = true
-		}
 
 		stopAction := false
 		go func(stopAction *bool) {
@@ -176,7 +165,7 @@ func (t Task) SendTorFiles() {
 			t.App.SendLogToChannel(t.Message.From.ID,
 				"doc", fmt.Sprintf("doc file - "+t.Torrent.Name), sentDoc.Document.FileID)
 
-			cache.Add("doc", sentDoc.Document.FileID, sentDoc.Document.FileSize, t.Torrent.Name+".torrent")
+			cache.Add(sentDoc.Document.FileID, sentDoc.Document.FileSize, t.Torrent.Name+".torrent")
 		}
 
 		stopAction = true

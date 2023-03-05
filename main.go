@@ -9,6 +9,8 @@ import (
 )
 
 func main() {
+	log.Println()
+
 	app := Run()
 	go app.ObserverQueue()
 

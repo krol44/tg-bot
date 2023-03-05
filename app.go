@@ -166,7 +166,12 @@ func (a *App) ObserverQueue() {
 					if c.CheckExistVideo() {
 						task.SendVideos(c.Run())
 					} else {
-						task.SendTorFiles()
+						if userFromDB.Premium == 0 {
+							task.Send(tgbotapi.NewMessage(task.Message.Chat.ID,
+								fmt.Sprintf("❗️ "+task.Lang("Video files not found in a torrent"))))
+						} else {
+							task.SendTorFiles()
+						}
 					}
 				}
 
@@ -188,7 +193,7 @@ func (a *App) ObserverQueue() {
 			}
 
 			if _, bo := task.App.ChatsWork.StopTasks.LoadAndDelete(task.Message.Chat.ID); bo {
-				task.Send(tgbotapi.NewMessage(task.Message.Chat.ID, task.Lang("Task stopped")))
+				task.Send(tgbotapi.NewMessage(task.Message.Chat.ID, "❗️ "+task.Lang("Task stopped")))
 			}
 
 			// global queue
@@ -274,7 +279,11 @@ func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
 	a.Bot.Send(mess)
 }
 
+var muLogs sync.Mutex
+
 func (a *App) Logs(message any) {
+	muLogs.Lock()
+	defer muLogs.Unlock()
 	marshal, err := json.Marshal(message)
 	if err != nil {
 		return

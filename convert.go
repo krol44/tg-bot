@@ -8,7 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"image"
 	"image/jpeg"
-	"math"
 	"os"
 	"os/exec"
 	"path"
@@ -40,20 +39,8 @@ func (c Convert) Run() []FileConverted {
 	for _, pathway := range c.Task.Files {
 		fileConvertPath := pathway
 
-		statFileConvert, err := os.Stat(fileConvertPath)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
 		infoVideo := c.GetInfoVideo(pathway)
 		bitrate, _ := strconv.Atoi(infoVideo.Format.BitRate)
-
-		if statFileConvert.Size() > 17e+8 {
-			// calc bitrate
-			dur, _ := strconv.ParseFloat(infoVideo.Format.Duration, 64)
-			bitrate = (int((1990*8192)/math.Round(dur)) - 192*2) * 1000
-		}
 
 		if !c.Task.IsAllowFormatForConvert(fileConvertPath) {
 			c.ErrorAllowFormat = append(c.ErrorAllowFormat, path.Ext(fileConvertPath))
@@ -72,14 +59,14 @@ func (c Convert) Run() []FileConverted {
 			log.Warning(errCreat)
 		}
 
-		pathwayNewFiles := folderConvert + "/" + fileName
-		fileCoverPath := pathwayNewFiles + ".jpg"
-		fileConvertPathOut := pathwayNewFiles + ".mp4"
+		pathwayNewFile := folderConvert + "/" + fileName
+		fileCoverPath := pathwayNewFile + ".jpg"
+		fileConvertPathOut := pathwayNewFile + ".mp4"
 
 		timeTotal := c.TimeTotalRaw(fileConvertPath)
 
 		// exec
-		err = c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
+		err := c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
 		if err != nil {
 			if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
 				return nil
@@ -92,10 +79,10 @@ func (c Convert) Run() []FileConverted {
 		}
 
 		timeTotalAfter := c.TimeTotalRaw(fileConvertPathOut)
-		if timeTotal.Format("15:04") != timeTotalAfter.Format("15:04") && c.Task.UserFromDB.Premium == 1 {
+		if timeTotal.Format("15:04") != timeTotalAfter.Format("15:04") {
 			mess := fmt.Sprintf("‼️ different time (h:m) after convert, before %s - after %s",
 				timeTotal.Format("15:04"), timeTotalAfter.Format("15:04"))
-			log.Info(mess)
+			log.Warn(mess)
 			c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", mess)
 		}
 
@@ -156,33 +143,16 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 		"-c:v", cv,
 		"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
 		"-preset", "medium",
-		"-ss", "00:00:00",
-		"-t", "00:05:00",
 		"-fs", "1990M",
 		"-pix_fmt", "yuv420p",
 		"-b:v", fmt.Sprintf("%d", bitrate),
 		"-b:a", "192k",
-		// experimental
-		//"-bf:v", "0",
-		//"-profile:v", "high",
 		"-y",
 		"-f", "mp4",
 		fileConvertPathOut}
 
 	var args []string
 	for _, pa := range prepareArgs {
-		if c.Task.UserFromDB.Premium == 1 && (strings.Contains(pa, "-ss") ||
-			strings.Contains(pa, "00:00:00") ||
-			strings.Contains(pa, "-t") ||
-			strings.Contains(pa, "00:05:00")) {
-			continue
-		}
-		if !c.IsTorrent && (strings.Contains(pa, "-ss") ||
-			strings.Contains(pa, "00:00:00") ||
-			strings.Contains(pa, "-t") ||
-			strings.Contains(pa, "00:05:00")) {
-			continue
-		}
 		//if config.IsDev && strings.Contains(pa, "00:05:00") {
 		//	if config.IsDev {
 		//		args = append(args, "00:01:00")
@@ -233,12 +203,12 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 
 		timeNull, _ := time.Parse("15:04:05", "00:00:00")
 
-		PercentConvert, _ := strconv.ParseFloat(fmt.Sprintf("%.2f",
+		percentConvert, _ := strconv.ParseFloat(fmt.Sprintf("%.2f",
 			100-(timeTotal.Sub(timeLeft).Seconds()/timeTotal.Sub(timeNull).Seconds())*100), 64)
 
 		_, errEdit := c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
 			fmt.Sprintf("🌪 %s \n\n🔥 "+c.Task.Lang("Convert progress")+": %.2f%%",
-				fileName, PercentConvert)))
+				fileName, percentConvert)))
 
 		if errEdit != nil {
 			log.Warning(errEdit)

@@ -6,7 +6,6 @@ import (
 	"github.com/krol44/telegram-bot-api"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"math/rand"
 	"os"
 	"path"
 	"time"
@@ -63,22 +62,23 @@ func (t *Task) Alloc(typeDl string) {
 		time.Sleep(4 * time.Second)
 	}
 
-	if t.UserFromDB.Premium == 0 && typeDl == "torrent" {
-		messPremium := tgbotapi.NewMessage(t.Message.Chat.ID, "‼️ "+
-			t.Lang("Only the first 5 minutes video is "+
-				"available and torrent in the zip archive don't available")+"\n\n"+
-			fmt.Sprintf(`<a href="%s">%s</a>`,
-				"https://www.donationalerts.com/r/torpurrbot",
-				t.Lang("To donate, for to improve the bot"))+" 🔥\n"+
-			"("+t.Lang("Write your telegram username in the body message."+
-			" After donation, you will get full access for 30 days")+")")
-		messPremium.ParseMode = tgbotapi.ModeHTML
-		t.Send(messPremium)
-
-		rand.Seed(time.Now().Unix())
-		t.Send(tgbotapi.NewSticker(t.Message.Chat.ID,
-			tgbotapi.FileID(config.CuteStickers[rand.Intn(len(config.CuteStickers))])))
-	}
+	// todo if you need
+	//if t.UserFromDB.Premium == 0 && typeDl == "torrent" {
+	//	messPremium := tgbotapi.NewMessage(t.Message.Chat.ID, "‼️ "+
+	//		t.Lang("Only the first 5 minutes video is "+
+	//			"available and torrent in the zip archive don't available")+"\n\n"+
+	//		fmt.Sprintf(`<a href="%s">%s</a>`,
+	//			"https://www.donationalerts.com/r/torpurrbot",
+	//			t.Lang("To donate, for to improve the bot"))+" 🔥\n"+
+	//		"("+t.Lang("Write your telegram username in the body message."+
+	//		" After donation, you will get full access for 30 days")+")")
+	//	messPremium.ParseMode = tgbotapi.ModeHTML
+	//	t.Send(messPremium)
+	//
+	//	rand.Seed(time.Now().Unix())
+	//	t.Send(tgbotapi.NewSticker(t.Message.Chat.ID,
+	//		tgbotapi.FileID(config.CuteStickers[rand.Intn(len(config.CuteStickers))])))
+	//}
 
 	// log
 	t.App.SendLogToChannel(t.Message.From.ID, "mess", fmt.Sprintf("start download "+typeDl))
@@ -95,16 +95,18 @@ func (t *Task) RemoveMessageEdit() {
 func (t *Task) Cleaner() {
 	t.App.LockForRemove.Add(1)
 
-	log.Info("Folders cleaning...")
+	if config.IsDev == false {
+		pathConvert := config.DirBot + "/storage"
+		dirs, _ := os.ReadDir(pathConvert)
 
-	pathConvert := config.DirBot + "/storage"
-	dirs, _ := os.ReadDir(pathConvert)
-
-	for _, val := range dirs {
-		err := os.RemoveAll(pathConvert + "/" + val.Name())
-		if err != nil {
-			log.Error(err)
+		for _, val := range dirs {
+			err := os.RemoveAll(pathConvert + "/" + val.Name())
+			if err != nil {
+				log.Error(err)
+			}
 		}
+
+		log.Info("Folders cleaning...")
 	}
 
 	if config.IsDev == false {
