@@ -39,7 +39,7 @@ func init() {
 	chatIdChannelLog, _ := strconv.ParseInt(os.Getenv("CHAT_ID_CHANNEL_LOG"), 10, 64)
 
 	config = Struct{
-		os.Getenv("dev") == "true",
+		os.Getenv("DEV") == "true",
 		chatIdChannelLog,
 		os.Getenv("DIR_BOT"),
 		os.Getenv("DIR_DB"),

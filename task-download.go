@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/anacrolix/torrent"
 	"github.com/dustin/go-humanize"
 	tgbotapi "github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
@@ -16,19 +18,20 @@ import (
 	"time"
 )
 
-func (t *Task) DownloadVideoUrl() []string {
+func (t *Task) DownloadVideoUrl() bool {
 	urlVideo := t.Message.Text
 
 	sp := strings.Split(t.Message.Text, "&")
 	if len(sp) >= 1 {
 		urlVideo = sp[0]
 	}
+	t.VideoUrlHttp = urlVideo
 
 	_, err := url.ParseRequestURI(urlVideo)
 	if err != nil {
 		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")))
 		log.Error(err)
-		return nil
+		return false
 	}
 
 	t.Alloc("video-url")
@@ -49,7 +52,7 @@ func (t *Task) DownloadVideoUrl() []string {
 	if err != nil {
 		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")+" 1"))
 		log.Error(err)
-		return nil
+		return false
 	}
 
 	var infoVideo struct {
@@ -63,7 +66,7 @@ func (t *Task) DownloadVideoUrl() []string {
 	if err != nil {
 		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")+" 2"))
 		log.Error(err)
-		return nil
+		return false
 	}
 
 	if infoVideo.FilesizeApprox == 0 {
@@ -71,7 +74,7 @@ func (t *Task) DownloadVideoUrl() []string {
 	}
 	if infoVideo.FilesizeApprox == 0 {
 		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")+" 3"))
-		return nil
+		return false
 	}
 
 	protectedFlag = false
@@ -79,7 +82,7 @@ func (t *Task) DownloadVideoUrl() []string {
 	t.VideoUrlID = infoVideo.ID
 	cache := Cache{Task: t}
 	if cache.TrySendThroughId() {
-		return []string{}
+		return false
 	}
 
 	cleanTitle := strings.ReplaceAll(infoVideo.FullTitle, "#", "")
@@ -142,11 +145,11 @@ func (t *Task) DownloadVideoUrl() []string {
 	defer stdout.Close()
 	if err != nil {
 		log.Error(err)
-		return nil
+		return false
 	}
 	if err = cmd.Start(); err != nil {
 		log.Error(err)
-		return nil
+		return false
 	}
 
 	for {
@@ -185,7 +188,7 @@ func (t *Task) DownloadVideoUrl() []string {
 
 			stopProtected = true
 
-			return nil
+			return false
 		}
 
 		if percent == "100" {
@@ -197,13 +200,13 @@ func (t *Task) DownloadVideoUrl() []string {
 
 	if err := cmd.Wait(); err != nil {
 		log.Error(err)
-		return nil
+		return false
 	}
 
 	dir, err := os.ReadDir(folder)
 	if err != nil {
 		log.Error(err)
-		return nil
+		return false
 	}
 
 	var filePath string
@@ -221,50 +224,32 @@ func (t *Task) DownloadVideoUrl() []string {
 
 	stopProtected = true
 
-	t.Files = []string{filePath}
 	if cache.TrySendThroughMd5(filePath) {
-		t.Files = []string{}
+		return false
 	}
 
-	return t.Files
+	t.File = filePath
+
+	return true
 }
 
-func (t *Task) DownloadTorrentFiles() []string {
-	isMagnet := strings.Contains(t.Message.Text, "magnet:?xt=")
-
-	var (
-		file tgbotapi.File
-		err  error
-	)
-
-	qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
-	if !isMagnet {
-		file, err = t.App.Bot.GetFile(tgbotapi.FileConfig{FileID: t.Message.Document.FileID})
-
-		if err != nil {
-			log.Warning(err)
-			return nil
-		}
-		// log
-		t.App.SendLogToChannel(t.Message.From.ID, "doc",
-			fmt.Sprintf("upload torrent file | his turn: %d", qn.(int)+1), t.Message.Document.FileID)
-	} else {
-		// log
-		t.App.SendLogToChannel(t.Message.From.ID, "mess",
-			fmt.Sprintf("torrent magnet | his turn: %d", qn.(int)+1))
-	}
-
+func (t *Task) DownloadTorrentFile(torrentProcess *torrent.Torrent) bool {
 	t.Alloc("torrent")
 
-	if !isMagnet {
-		t.Torrent.Process, err = t.App.TorClient.AddTorrentFromFile(config.TgPathLocal + "/" + config.BotToken +
-			"/" + file.FilePath)
-	} else {
-		t.Torrent.Process, err = t.App.TorClient.AddMagnet(t.Message.Text)
-	}
-	if err != nil {
-		log.Error(err)
-		return nil
+	t.Torrent.Process = torrentProcess
+
+	var fileChosen *torrent.File
+	for _, val := range t.Torrent.Process.Files() {
+		if strings.Contains(t.Message.Text, val.DisplayPath()) {
+			if val.Length() > 1999e6 { // more 2 GB
+				t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, fmt.Sprintf("😔 "+t.Lang("File is bigger 2 GB"))))
+				return false
+			}
+			val.SetPriority(torrent.PiecePriorityNow)
+			fileChosen = val
+		} else {
+			val.SetPriority(torrent.PiecePriorityNone)
+		}
 	}
 
 	// if name not correct
@@ -274,26 +259,9 @@ func (t *Task) DownloadTorrentFiles() []string {
 
 	<-t.Torrent.Process.GotInfo()
 
-	t.Torrent.Name = t.Torrent.Process.Info().BestName()
+	t.Torrent.Name = fileChosen.DisplayPath()
 
 	infoText := fmt.Sprintf("🎈 "+t.Lang("Torrent")+": %s", t.Torrent.Name)
-
-	t.Torrent.Process.Info()
-
-	if len(t.Torrent.Process.Info().Files) != 0 {
-		var listFiles string
-		for _, val := range t.Torrent.Process.Info().Files {
-			if len(val.Path) == 0 {
-				continue
-			}
-			if t.IsAllowFormatForConvert(val.Path[0]) {
-				listFiles += fmt.Sprintf("%s\n", val.Path[0])
-			}
-		}
-		if listFiles != "" {
-			infoText += fmt.Sprintf("\n\n📋 "+t.Lang("List of files")+":\n") + listFiles
-		}
-	}
 
 	messInfo := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, infoText))
 	// pin
@@ -302,99 +270,106 @@ func (t *Task) DownloadTorrentFiles() []string {
 		MessageID:           messInfo.MessageID,
 		DisableNotification: true,
 	}
-	if _, errPin := t.App.Bot.Request(pinChatInfoMess); err != nil {
-		log.Warning(errPin)
+
+	_, err := t.App.Bot.Request(pinChatInfoMess)
+	if err != nil {
+		log.Warning(err)
 	}
 
-	go func() {
+	ctx, cancelProgress := context.WithCancel(context.Background())
+	go func(ctx context.Context, fileChosen *torrent.File) {
 		for {
-			stat, percent := t.statDlTor()
-			if percent == 100 {
-				break
-			}
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+					return
+				}
 
-			if time.Now().Second()%2 == 0 && t.MessageTextLast != stat {
-				t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, stat))
-				t.MessageTextLast = stat
+				stat, percent := t.statDlTor(fileChosen)
+				if percent == 100 {
+					return
+				}
+
+				go func(ctx context.Context, t *Task) {
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						if time.Now().Second()%2 == 0 && t.MessageTextLast != stat {
+							t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, stat))
+							t.MessageTextLast = stat
+						}
+					}
+				}(ctx, t)
 			}
 			time.Sleep(time.Second)
-
-			if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
-				t.Torrent.Process.Complete.SetBool(true)
-				break
-			}
 		}
-	}()
+	}(ctx, fileChosen)
 
-	t.Torrent.Process.DownloadAll()
+	t.Torrent.Process.AllowDataDownload()
 
-	<-t.Torrent.Process.Complete.On()
-	t.Torrent.Process.Drop()
+	for {
+		if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+			break
+		}
+		if fileChosen.FileInfo().Length == fileChosen.BytesCompleted() {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+
+	cancelProgress()
 
 	if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
-		return nil
+		t.Torrent.Process.Drop()
+		return false
 	}
 
 	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 		"✅ "+t.Lang("Torrent downloaded, wait next step")))
 
+	pathway := path.Clean(config.DirBot + "/torrent-client/" + fileChosen.Path())
+
 	cache := Cache{Task: t}
-	for _, torFile := range t.Torrent.Process.Files() {
-		pathway := path.Clean(config.DirBot + "/torrent-client/" + torFile.Path())
-
-		fiCh, _ := os.Stat(pathway)
-		if fiCh.Size() > 2e+9 {
-			t.Send(tgbotapi.NewMessage(t.Message.Chat.ID,
-				fmt.Sprintf("❗ "+t.Lang("%s - File is more 2gb, will be skipped"), path.Base(pathway))))
-			time.Sleep(time.Second * 2)
-			continue
-		}
-
-		if cache.TrySend("video", pathway) {
-			continue
-		}
-
-		if cache.TrySendThroughMd5(pathway) {
-			continue
-		}
-
-		t.Files = append(t.Files, pathway)
+	if cache.TrySend("video", pathway) {
+		return false
+	}
+	if cache.TrySendThroughMd5(pathway) {
+		return false
+	}
+	if cache.TrySend("doc", t.Torrent.Name+".torrent") {
+		return false
 	}
 
-	return t.Files
+	t.File = pathway
+
+	return true
 }
 
-func (t *Task) statDlTor() (string, float64) {
+func (t *Task) statDlTor(fileChosen *torrent.File) (string, float64) {
 	if t.Torrent.Process.Info() == nil {
 		return "", 0
 	}
 
 	currentProgress := t.Torrent.Process.BytesCompleted()
-	downloadSpeed := humanize.Bytes(uint64(currentProgress-t.Torrent.TorrentProgress)) + "/s"
-	t.Torrent.TorrentProgress = currentProgress
+	downloadSpeed := humanize.Bytes(uint64(currentProgress-t.Torrent.Progress)) + "/s"
+	t.Torrent.Progress = currentProgress
 
-	complete := humanize.Bytes(uint64(currentProgress))
-	size := humanize.Bytes(uint64(t.Torrent.Process.Info().TotalLength()))
-
-	bytesWrittenData := t.Torrent.Process.Stats().BytesWrittenData
-	uploadProgress := (&bytesWrittenData).Int64() - t.Torrent.Uploaded
-	uploadSpeed := humanize.Bytes(uint64(uploadProgress)) + "/s"
-	t.Torrent.Uploaded = uploadProgress
-
-	ctlInfo := t.Torrent.Process.Info()
+	ctlInfo := fileChosen.FileInfo().Length
+	complete := humanize.Bytes(uint64(fileChosen.BytesCompleted()))
+	size := humanize.Bytes(uint64(ctlInfo))
 	var percentage float64
-	if ctlInfo != nil {
-		percentage = float64(t.Torrent.Process.BytesCompleted()) / float64(ctlInfo.TotalLength()) * 100
+	if ctlInfo != 0 {
+		percentage = float64(fileChosen.BytesCompleted()) / float64(ctlInfo) * 100
 	}
 
 	stat := fmt.Sprintf(
-		"🔥 "+t.Lang("Progress")+": \t%s / %s  %.2f%%\n\n🔽 "+t.Lang("Download speed")+": %s",
-		complete, size, percentage, downloadSpeed)
-
-	// if it needs
-	if uploadProgress > 0 {
-		stat += fmt.Sprintf("\n\n🔼 "+t.Lang("Upload speed")+": \t%s", uploadSpeed)
-	}
+		"🔥 "+t.Lang("Progress")+": \t%s / %s  %.2f%%\n\n🔽 "+t.Lang("Speed")+
+			": %s (Act. peers %d / Total %d)",
+		complete, size, percentage, downloadSpeed, t.Torrent.Process.Stats().ActivePeers,
+		t.Torrent.Process.Stats().TotalPeers)
 
 	return stat, percentage
 }

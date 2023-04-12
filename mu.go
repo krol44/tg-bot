@@ -11,6 +11,9 @@ type ChatsWork struct {
 	LockIncPlus sync.Mutex
 
 	StopTasks sync.Map
+
+	TorrentProcesses sync.Map
+	ChosenMessageIDs sync.Map
 }
 
 func (c *ChatsWork) IncPlus(messId int, chatId int64) {

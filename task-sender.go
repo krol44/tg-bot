@@ -1,173 +1,124 @@
 package main
 
 import (
-	"archive/zip"
-	"compress/flate"
 	"fmt"
 	tgbotapi "github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"os"
-	"strings"
 	"time"
 )
 
-const signAdvt = "\n\n@TorPurrBot - Download Torrent video, YouTube, TikTok, other"
+const signAdvt = "\n\n@TorPurrBot - Download Torrent Video or File, YouTube, TikTok, Other"
 
-func (t Task) SendVideos(files []FileConverted) {
-	for _, v := range files {
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("📲 "+t.Lang("Sending video")+" - %s \n\n🍿 "+
-				t.Lang("Time upload to the telegram ~ 1-7 minutes"), v.Name)))
+func (t Task) SendVideo(file FileConverted) {
+	if file.FilePath == "" {
+		return
+	}
 
-		video := tgbotapi.NewVideo(t.Message.Chat.ID,
-			tgbotapi.FilePath(v.FilePath))
+	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
+		fmt.Sprintf("📲 "+t.Lang("Sending video")+" - %s \n\n🍿 "+
+			t.Lang("Time upload to the telegram ~ 1-7 minutes"), file.Name)))
 
-		video.SupportsStreaming = true
-		video.Caption = v.Name + signAdvt
-		video.Thumb = tgbotapi.FilePath(v.CoverPath)
-		video.Width = v.CoverSize.X
-		video.Height = v.CoverSize.Y
+	video := tgbotapi.NewVideo(t.Message.Chat.ID,
+		tgbotapi.FilePath(file.FilePath))
 
-		stopAction := false
-		go func(stopAction *bool) {
-			for {
-				if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
-					return
-				}
+	var urlHttp string
+	if t.VideoUrlHttp != "" {
+		urlHttp = "\n" + t.VideoUrlHttp
+	}
 
-				if *stopAction == true {
-					break
-				}
+	video.SupportsStreaming = true
+	video.Caption = file.Name + urlHttp + signAdvt
+	video.Thumb = tgbotapi.FilePath(file.CoverPath)
+	video.Width = file.CoverSize.X
+	video.Height = file.CoverSize.Y
 
-				_, _ = t.App.Bot.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_video"))
-
-				time.Sleep(4 * time.Second)
+	stopAction := false
+	go func(stopAction *bool) {
+		for {
+			if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+				return
 			}
-		}(&stopAction)
 
-		sentVideo, err := t.App.Bot.Send(video)
-		if err != nil {
-			stopAction = true
-			log.Error(err)
+			if *stopAction == true {
+				return
+			}
 
-			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-				"😞 "+t.Lang("Something wrong... We will be fixing it")))
+			_, _ = t.App.Bot.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_video"))
 
-			t.App.SendLogToChannel(t.Message.From.ID, "mess",
-				fmt.Sprintf("video file send err\n\n%s", err))
-			return
-		} else {
-			stopAction = true
-
-			t.App.SendLogToChannel(t.Message.From.ID, "video", fmt.Sprintf("video file - "+v.Name),
-				sentVideo.Video.FileID)
-
-			Cache.Add(Cache{Task: &t}, sentVideo.Video.FileID, sentVideo.Video.FileSize, v.FilePathNative)
+			time.Sleep(4 * time.Second)
 		}
+	}(&stopAction)
 
-		time.Sleep(time.Second * 5)
+	sentVideo, err := t.App.Bot.Send(video)
+	if err != nil {
+		stopAction = true
+		log.Error(err)
+
+		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
+			"😞 "+t.Lang("Something wrong... We will be fixing it")))
+
+		t.App.SendLogToChannel(t.Message.From.ID, "mess",
+			fmt.Sprintf("video file send err\n\n%s", err))
+		return
+	} else {
+		stopAction = true
+
+		t.App.SendLogToChannel(t.Message.From.ID, "video", fmt.Sprintf("video file - "+file.Name),
+			sentVideo.Video.FileID)
+
+		Cache.Add(Cache{Task: &t}, sentVideo.Video.FileID, sentVideo.Video.FileSize, file.FilePathNative)
 	}
 }
 
-func (t Task) SendTorFiles() {
-	cache := Cache{Task: &t}
-	if cache.TrySend("doc", t.Torrent.Name+".torrent") {
+func (t Task) SendTorFile() {
+	if t.File == "" {
 		return
 	}
 
-	zipName := t.UniqueId(t.Torrent.Name) + ".zip"
-	pathZip := config.DirBot + "/storage/" + zipName
-	archive, err := os.Create(pathZip)
+	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
+		fmt.Sprintf("📲 "+t.Lang("Sending...")+" - %s \n\n⏰ "+
+			t.Lang("Time upload to the telegram ~ 1-7 minutes"), t.Torrent.Name)))
+
+	doc := tgbotapi.NewDocument(t.Message.Chat.ID,
+		tgbotapi.FilePath(t.File))
+
+	doc.Caption = t.Torrent.Name + signAdvt
+
+	stopAction := false
+	go func(stopAction *bool) {
+		for {
+			if *stopAction == true {
+				return
+			}
+
+			_, _ = t.App.Bot.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_document"))
+
+			time.Sleep(4 * time.Second)
+		}
+	}(&stopAction)
+
+	sentDoc, err := t.App.Bot.Send(doc)
 	if err != nil {
 		log.Error(err)
-		return
-	}
-
-	zipWriter := zip.NewWriter(archive)
-	zipWriter.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
-		return flate.NewWriter(out, flate.NoCompression)
-	})
-
-	for _, pathway := range t.Files {
-		if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
-			return
-		}
-
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("🔥 Ziping - %s", pathway)))
-
-		_, err := os.Stat(pathway)
-		if err != nil {
-			log.Error(err)
-		}
-
-		file, err := os.Open(pathway)
-		if err != nil {
-			log.Warning(err)
-		}
-
-		ctz, err := zipWriter.Create(strings.TrimLeft(pathway, config.DirBot+"/torrent-client/"))
-		if err != nil {
-			log.Warning(err)
-		}
-		if _, err := io.Copy(ctz, file); err != nil {
-			log.Warning(err)
-		}
-
-		file.Close()
-	}
-
-	zipWriter.Close()
-	archive.Close()
-
-	fiCh, err := os.Stat(pathZip)
-	if err != nil {
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("😞 "+t.Lang("Something wrong... We will be fixing it"))))
-		return
-	}
-	isBigFile := fiCh.Size() > 1999e6 // more 2gb
-
-	if isBigFile {
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("😔 "+
-				t.Lang("Files in the torrent are too big, zip archive size available only no more than 2 gb"))))
+		t.App.SendLogToChannel(t.Message.From.ID,
+			"mess", fmt.Sprintf("send file err\n\n%s", err))
 	} else {
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			fmt.Sprintf("📲 "+t.Lang("Sending zip")+" - %s \n\n⏰ "+
-				t.Lang("Time upload to the telegram ~ 1-7 minutes"), zipName)))
-
-		doc := tgbotapi.NewDocument(t.Message.Chat.ID,
-			tgbotapi.FilePath(pathZip))
-
-		doc.Caption = t.Torrent.Name + signAdvt
-
-		stopAction := false
-		go func(stopAction *bool) {
-			for {
-				if *stopAction == true {
-					break
-				}
-
-				_, _ = t.App.Bot.Send(tgbotapi.NewChatAction(t.Message.Chat.ID, "upload_document"))
-
-				time.Sleep(4 * time.Second)
-			}
-		}(&stopAction)
-
-		sentDoc, err := t.App.Bot.Send(doc)
-		if err != nil {
-			log.Error(err)
-			t.App.SendLogToChannel(t.Message.From.ID,
-				"mess", fmt.Sprintf("zip file send err\n\n%s", err))
+		var (
+			fileIDStr string
+			fileSize  int
+		)
+		if sentDoc.Document != nil {
+			fileIDStr = sentDoc.Document.FileID
+			fileSize = sentDoc.Document.FileSize
 		} else {
-			t.App.SendLogToChannel(t.Message.From.ID,
-				"doc", fmt.Sprintf("doc file - "+t.Torrent.Name), sentDoc.Document.FileID)
-
-			cache.Add(sentDoc.Document.FileID, sentDoc.Document.FileSize, t.Torrent.Name+".torrent")
+			fileIDStr = sentDoc.Audio.FileID
+			fileSize = sentDoc.Audio.FileSize
 		}
+		t.App.SendLogToChannel(t.Message.From.ID,
+			"doc", fmt.Sprintf("doc file - "+t.Torrent.Name), fileIDStr)
 
-		stopAction = true
+		Cache.Add(Cache{Task: &t}, fileIDStr, fileSize, t.Torrent.Name+".torrent")
 	}
+
+	stopAction = true
 }

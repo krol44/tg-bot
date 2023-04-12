@@ -118,11 +118,13 @@ func (a *App) ObserverQueue() {
 		}
 
 		// long task
+		torrentProcess, existTorProc := a.ChatsWork.TorrentProcesses.Load(val.Message.Text)
 		if !(val.Message.Document != nil ||
 			strings.Contains(val.Message.Text, "youtube.com") ||
 			strings.Contains(val.Message.Text, "youtu.be") ||
 			strings.Contains(val.Message.Text, "tiktok.com") ||
-			strings.Contains(val.Message.Text, "magnet:?xt=")) {
+			strings.Contains(val.Message.Text, "magnet:?xt=") ||
+			existTorProc) {
 			continue
 		}
 
@@ -140,7 +142,7 @@ func (a *App) ObserverQueue() {
 					cleanerWait.Done()
 					cleanerWait.Wait()
 
-					log.Warnf("Crash queue: %s", r)
+					log.Error("Crash queue: %s", r)
 				}
 			}(valIn)
 
@@ -160,17 +162,22 @@ func (a *App) ObserverQueue() {
 
 			if (valIn.Message.Document != nil && valIn.Message.Document.MimeType == "application/x-bittorrent") ||
 				strings.Contains(valIn.Message.Text, "magnet:?xt=") {
-				files := task.DownloadTorrentFiles()
-				if files != nil {
+				task.OpenKeyBoardWithTorrentFiles()
+			}
+
+			if existTorProc {
+				task.CloseKeyBoardWithTorrentFiles()
+
+				if task.DownloadTorrentFile(torrentProcess.(*torrent.Torrent)) {
 					var c = Convert{Task: task, IsTorrent: true}
 					if c.CheckExistVideo() {
-						task.SendVideos(c.Run())
+						task.SendVideo(c.Run())
 					} else {
-						if userFromDB.Premium == 0 {
+						if false { //if userFromDB.Premium == 0 {
 							task.Send(tgbotapi.NewMessage(task.Message.Chat.ID,
-								fmt.Sprintf("❗️ "+task.Lang("Video files not found in a torrent"))))
+								fmt.Sprintf("❗️ "+task.Lang("Available only for users who support us"))))
 						} else {
-							task.SendTorFiles()
+							task.SendTorFile()
 						}
 					}
 				}
@@ -181,11 +188,11 @@ func (a *App) ObserverQueue() {
 			if strings.Contains(valIn.Message.Text, "youtube.com") ||
 				strings.Contains(valIn.Message.Text, "youtu.be") ||
 				strings.Contains(valIn.Message.Text, "tiktok.com") {
-				file := task.DownloadVideoUrl()
-				if file != nil {
+
+				if task.DownloadVideoUrl() {
 					var c = Convert{Task: task, IsTorrent: false}
 					if c.CheckExistVideo() {
-						task.SendVideos(c.Run())
+						task.SendVideo(c.Run())
 					}
 				}
 

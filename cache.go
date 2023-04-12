@@ -33,10 +33,16 @@ func (c Cache) Add(tgFileId string, tgFileSize int, NativeFilePath string) {
 
 	caption := strings.TrimSuffix(path.Base(NativeFilePath), path.Ext(path.Base(NativeFilePath)))
 
+	var urlHttp string
+	if c.Task.VideoUrlHttp != "" {
+		urlHttp = "\n" + c.Task.VideoUrlHttp
+	}
+
 	_, err := c.Task.App.DB.Exec(`INSERT INTO cache
 		(caption, native_path_file, native_md5_sum, video_url_id, tg_from_id, tg_file_id, tg_file_size, date_create)
 		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-		caption, NativeFilePath, md5Sum, c.Task.VideoUrlID, c.Task.Message.From.ID, tgFileId, tgFileSize)
+		caption+urlHttp, NativeFilePath, md5Sum, c.Task.VideoUrlID, c.Task.Message.From.ID,
+		tgFileId, tgFileSize)
 	if err != nil {
 		log.Error(err)
 	}

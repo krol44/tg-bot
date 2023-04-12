@@ -8,26 +8,26 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path"
+	"strconv"
+	"strings"
 	"time"
 )
 
 type Task struct {
 	App             *App
 	Message         *tgbotapi.Message
-	Files           []string
+	File            string
 	MessageEditID   int
 	MessageTextLast string
 	UserFromDB      User
 	Translate       *Translate
 	Torrent         struct {
-		Name            string
-		Process         *torrent.Torrent
-		Progress        int64
-		Uploaded        int64
-		TorrentProgress int64
-		TorrentUploaded int64
+		Name     string
+		Process  *torrent.Torrent
+		Progress int64
 	}
-	VideoUrlID string
+	VideoUrlHttp string
+	VideoUrlID   string
 }
 
 func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
@@ -43,9 +43,11 @@ func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
 }
 
 func (t *Task) Alloc(typeDl string) {
+	msg := tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 "+t.Lang("Download is starting soon")+
+		"...")
+
 	// creating edit message
-	messStat := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 "+t.Lang("Download is starting soon")+
-		"..."))
+	messStat := t.Send(msg)
 	t.MessageEditID = messStat.MessageID
 
 	for {
@@ -82,6 +84,95 @@ func (t *Task) Alloc(typeDl string) {
 
 	// log
 	t.App.SendLogToChannel(t.Message.From.ID, "mess", fmt.Sprintf("start download "+typeDl))
+}
+
+func (t *Task) OpenKeyBoardWithTorrentFiles() []string {
+	isMagnet := strings.Contains(t.Message.Text, "magnet:?xt=")
+
+	var (
+		torrentProcess *torrent.Torrent
+		file           tgbotapi.File
+		err            error
+	)
+
+	qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
+	if !isMagnet {
+		file, err = t.App.Bot.GetFile(tgbotapi.FileConfig{FileID: t.Message.Document.FileID})
+		if err != nil {
+			log.Error(err)
+			return nil
+		}
+
+		torrentProcess, err = t.App.TorClient.AddTorrentFromFile(config.TgPathLocal + "/" + config.BotToken +
+			"/" + file.FilePath)
+		if err != nil {
+			log.Error(err)
+			return nil
+		}
+		// log
+		t.App.SendLogToChannel(t.Message.From.ID, "doc",
+			fmt.Sprintf("upload torrent file | his turn: %d", qn.(int)+1), t.Message.Document.FileID)
+	} else {
+		torrentProcess, err = t.App.TorClient.AddMagnet(t.Message.Text)
+		if err != nil {
+			log.Error(err)
+			return nil
+		}
+		// log
+		t.App.SendLogToChannel(t.Message.From.ID, "mess",
+			fmt.Sprintf("torrent magnet | his turn: %d", qn.(int)+1))
+	}
+
+	var keyBoardButtons []tgbotapi.KeyboardButton
+	for index, val := range torrentProcess.Files() {
+		if index >= 50 {
+			continue
+		}
+
+		str := val.Path() + " ~ " + strconv.FormatInt(val.Length()>>20, 10) + " MB"
+		if len([]rune(str)) >= 120 {
+			str = str[len([]rune(str))-120:]
+		}
+
+		keyBoardButtons = append(keyBoardButtons, tgbotapi.NewKeyboardButton(str))
+
+		t.App.ChatsWork.TorrentProcesses.Store(str, torrentProcess)
+
+		// purify syncMap
+		go func(strIn string, chatID int64) {
+			time.Sleep(time.Hour)
+			tor, bo := t.App.ChatsWork.TorrentProcesses.LoadAndDelete(strIn)
+			if bo {
+				tor.(*torrent.Torrent).Drop()
+			}
+		}(str, t.Message.Chat.ID)
+	}
+	var keyboardButtonRows [][]tgbotapi.KeyboardButton
+	for _, val := range keyBoardButtons {
+		keyboardButtonRows = append(keyboardButtonRows, tgbotapi.NewKeyboardButtonRow(val))
+	}
+
+	if keyboardButtonRows == nil {
+		return nil
+	}
+
+	var numericKeyboard = tgbotapi.NewReplyKeyboard(keyboardButtonRows...)
+
+	msg := tgbotapi.NewMessage(t.Message.Chat.ID, "📍 "+t.Lang("Choose a file, max size 2 GB"))
+
+	msg.ReplyMarkup = numericKeyboard
+
+	mess := t.Send(msg)
+
+	t.App.ChatsWork.ChosenMessageIDs.Store(mess.Chat.ID, mess.MessageID)
+
+	return nil
+}
+
+func (t *Task) CloseKeyBoardWithTorrentFiles() {
+	if messEditID, bo := t.App.ChatsWork.ChosenMessageIDs.Load(t.Message.Chat.ID); bo {
+		t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, messEditID.(int)))
+	}
 }
 
 func (t *Task) Lang(str string) string {

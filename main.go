@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	log.Println()
+	log.Info("TorPurrBot is running...")
 
 	app := Run()
 	go app.ObserverQueue()

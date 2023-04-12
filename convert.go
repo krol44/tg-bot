@@ -18,10 +18,8 @@ import (
 )
 
 type Convert struct {
-	Task             Task
-	FilesConverted   []FileConverted
-	ErrorAllowFormat []string
-	IsTorrent        bool
+	Task      Task
+	IsTorrent bool
 }
 
 type FileConverted struct {
@@ -32,93 +30,83 @@ type FileConverted struct {
 	CoverSize      image.Point
 }
 
-func (c Convert) Run() []FileConverted {
-	c.FilesConverted = make([]FileConverted, 0)
-	c.ErrorAllowFormat = make([]string, 0)
+func (c Convert) Run() FileConverted {
+	fileConvertPath := c.Task.File
 
-	for _, pathway := range c.Task.Files {
-		fileConvertPath := pathway
+	infoVideo := c.GetInfoVideo(fileConvertPath)
+	bitrate, _ := strconv.Atoi(infoVideo.Format.BitRate)
 
-		infoVideo := c.GetInfoVideo(pathway)
-		bitrate, _ := strconv.Atoi(infoVideo.Format.BitRate)
-
-		if !c.Task.IsAllowFormatForConvert(fileConvertPath) {
-			c.ErrorAllowFormat = append(c.ErrorAllowFormat, path.Ext(fileConvertPath))
-			continue
-		}
-
-		fileName := strings.TrimSuffix(path.Base(fileConvertPath), path.Ext(path.Base(fileConvertPath)))
-
-		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
+	if !c.Task.IsAllowFormatForConvert(fileConvertPath) {
 		_, _ = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
-			fmt.Sprintf("🌪 %s \n\n🔥 "+c.Task.Lang("Convert is starting")+"...", fileName)))
-
-		// create folder
-		folderConvert, errCreat := c.CreateFolderConvert(fileName)
-		if errCreat != nil {
-			log.Warning(errCreat)
-		}
-
-		pathwayNewFile := folderConvert + "/" + fileName
-		fileCoverPath := pathwayNewFile + ".jpg"
-		fileConvertPathOut := pathwayNewFile + ".mp4"
-
-		timeTotal := c.TimeTotalRaw(fileConvertPath)
-
-		// exec
-		err := c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
-		if err != nil {
-			if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
-				return nil
-			}
-
-			c.Task.Send(tgbotapi.NewMessage(
-				c.Task.Message.Chat.ID, "❗️ "+c.Task.Lang("Video is bad")+" - "+fileName))
-			log.Error(err)
-			continue
-		}
-
-		timeTotalAfter := c.TimeTotalRaw(fileConvertPathOut)
-		if timeTotal.Format("15:04") != timeTotalAfter.Format("15:04") {
-			mess := fmt.Sprintf("‼️ different time (h:m) after convert, before %s - after %s",
-				timeTotal.Format("15:04"), timeTotalAfter.Format("15:04"))
-			log.Warn(mess)
-			c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", mess)
-		}
-
-		// create cover
-		err = c.CreateCover(fileConvertPathOut, fileCoverPath, timeTotal)
-		if err != nil {
-			log.Error(err)
-		}
-
-		// set permit
-		err = os.Chmod(fileConvertPathOut, os.ModePerm)
-		if err != nil {
-			log.Error(err)
-		}
-		err = os.Chmod(fileCoverPath, os.ModePerm)
-		if err != nil {
-			log.Error(err)
-		}
-
-		// get size
-		sizeCover, err := c.GetSizeCover(fileCoverPath)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
-		c.FilesConverted = append(c.FilesConverted, FileConverted{fileName,
-			fileConvertPathOut, fileConvertPath, fileCoverPath, sizeCover})
+			fmt.Sprintf("❗️ "+c.Task.Lang("Video format is not supported. Only"+" "+
+				strings.Join(config.AllowVideoFormats, ", ")))))
+		return FileConverted{}
 	}
 
-	if len(c.ErrorAllowFormat) > 0 {
-		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess",
-			fmt.Sprintf("warning, format not allowed %s", strings.Join(c.ErrorAllowFormat, " | ")))
+	fileName := strings.TrimSuffix(path.Base(fileConvertPath), path.Ext(path.Base(fileConvertPath)))
+
+	c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
+	_, _ = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
+		fmt.Sprintf("🌪 %s \n\n🔥 "+c.Task.Lang("Convert is starting")+"...", fileName)))
+
+	// create folder
+	folderConvert, errCreat := c.CreateFolderConvert(fileName)
+	if errCreat != nil {
+		log.Warning(errCreat)
 	}
 
-	return c.FilesConverted
+	pathwayNewFile := folderConvert + "/" + fileName
+	fileCoverPath := pathwayNewFile + ".jpg"
+	fileConvertPathOut := pathwayNewFile + ".mp4"
+
+	timeTotal := c.TimeTotalRaw(fileConvertPath)
+
+	// exec
+	err := c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
+	if err != nil {
+		if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
+			return FileConverted{}
+		}
+
+		c.Task.Send(tgbotapi.NewMessage(
+			c.Task.Message.Chat.ID, "❗️ "+c.Task.Lang("Video is bad")+" - "+fileName))
+		log.Error(err)
+		return FileConverted{}
+	}
+
+	timeTotalAfter := c.TimeTotalRaw(fileConvertPathOut)
+	if timeTotal.Format("15:04") != timeTotalAfter.Format("15:04") {
+		mess := fmt.Sprintf("‼️ different time (h:m) after convert, before %s - after %s",
+			timeTotal.Format("15:04"), timeTotalAfter.Format("15:04"))
+		log.Warn(mess)
+		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", mess)
+	}
+
+	// create cover
+	err = c.CreateCover(fileConvertPathOut, fileCoverPath, timeTotal)
+	if err != nil {
+		log.Error(err)
+	}
+
+	// set permit
+	err = os.Chmod(fileConvertPathOut, os.ModePerm)
+	if err != nil {
+		log.Error(err)
+	}
+	err = os.Chmod(fileCoverPath, os.ModePerm)
+	if err != nil {
+		log.Error(err)
+	}
+
+	// get size
+	sizeCover, err := c.GetSizeCover(fileCoverPath)
+	if err != nil {
+		log.Error(err)
+		return FileConverted{}
+	}
+
+	return FileConverted{fileName, fileConvertPathOut, fileConvertPath,
+		fileCoverPath, sizeCover}
 }
 
 func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, fileConvertPath string,
@@ -238,10 +226,9 @@ func (c Convert) CreateFolderConvert(fileName string) (string, error) {
 
 func (c Convert) CheckExistVideo() bool {
 	existVideo := false
-	for _, pathway := range c.Task.Files {
-		if c.Task.IsAllowFormatForConvert(pathway) {
-			existVideo = true
-		}
+
+	if c.Task.IsAllowFormatForConvert(c.Task.File) {
+		existVideo = true
 	}
 
 	return existVideo

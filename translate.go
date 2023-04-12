@@ -42,20 +42,14 @@ func (t *Translate) Lang(str string) string {
 		"Torrent": {
 			"ru": "Торрент",
 		},
-		"List of files": {
-			"ru": "Список файлов",
-		},
 		"Torrent downloaded, wait next step": {
 			"ru": "Торрент скачен, ожидайте следующий шаг",
 		},
 		"Progress": {
 			"ru": "Прогресс",
 		},
-		"Download speed": {
-			"ru": "Скорость скачивания",
-		},
-		"Upload speed": {
-			"ru": "Скорость загрузки",
+		"Speed": {
+			"ru": "Скорость",
 		},
 		"Download is starting soon": {
 			"ru": "Скачивание скоро начнется",
@@ -90,17 +84,20 @@ func (t *Translate) Lang(str string) string {
 		"Something wrong... We will be fixing it": {
 			"ru": "Что-то случилось, мы уже знаем и будем чинить",
 		},
-		"Files in the torrent are too big, zip archive size available only no more than 2 gb": {
-			"ru": "Файлы в торренте слишком большие, zip архив должен быть не больше 2 гигабайт",
+		"Sending...": {
+			"ru": "Отправка...",
 		},
-		"Sending zip": {
-			"ru": "Отправка zip",
+		"Available only for users who support us": {
+			"ru": "Доступно только для пользователей, которые поддерживают нас",
 		},
-		"Video files not found in a torrent": {
-			"ru": "Видео файлы не найдены в торренте",
+		"Choose a file, max size 2 GB": {
+			"ru": "Выберите файл, максимальный размер 2 GB",
 		},
-		"File %s is more 2gb, will be skipped": {
-			"ru": "Файл %s больше 2gb, будет пропущен",
+		"File is bigger 2 GB": {
+			"ru": "Файл больше 2 GB",
+		},
+		"Video format is not supported. Only": {
+			"ru": "Видео формат не поддерживается. Только",
 		},
 	}
 
