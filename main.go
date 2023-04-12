@@ -35,8 +35,10 @@ func main() {
 			sp := strings.Split(update.ChannelPost.Text, " ")
 
 			if len(sp) == 2 && sp[0] == "/premium" {
+				db := Sqlite()
+
 				var userFromDB User
-				_ = app.DB.Get(&userFromDB, "SELECT name, premium, language_code FROM users WHERE telegram_id = ?",
+				_ = db.Get(&userFromDB, "SELECT name, premium, language_code FROM users WHERE telegram_id = ?",
 					sp[1])
 
 				tr := Translate{Code: userFromDB.LanguageCode}
@@ -46,10 +48,12 @@ func main() {
 					premium = 1
 					premiumText = tr.Lang("Premium is enabled") + " 🎉"
 				}
-				_, err := app.DB.Exec("UPDATE users SET premium = ? WHERE telegram_id = ?", premium, sp[1])
+				_, err := db.Exec("UPDATE users SET premium = ? WHERE telegram_id = ?", premium, sp[1])
 				if err != nil {
 					log.Error(err)
 				}
+
+				db.Close()
 
 				if whoId, err := strconv.Atoi(sp[1]); err == nil {
 					app.SendLogToChannel(int64(whoId), "mess", premiumText)

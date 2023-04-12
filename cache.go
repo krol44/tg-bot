@@ -26,6 +26,9 @@ type CacheRow struct {
 }
 
 func (c Cache) Add(tgFileId string, tgFileSize int, NativeFilePath string) {
+	db := Sqlite()
+	defer db.Close()
+
 	var md5Sum string
 	if file, err := os.ReadFile(NativeFilePath); err == nil {
 		md5Sum = fmt.Sprintf("%x", md5.Sum(file))
@@ -38,7 +41,7 @@ func (c Cache) Add(tgFileId string, tgFileSize int, NativeFilePath string) {
 		urlHttp = "\n" + c.Task.VideoUrlHttp
 	}
 
-	_, err := c.Task.App.DB.Exec(`INSERT INTO cache
+	_, err := db.Exec(`INSERT INTO cache
 		(caption, native_path_file, native_md5_sum, video_url_id, tg_from_id, tg_file_id, tg_file_size, date_create)
 		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
 		caption+urlHttp, NativeFilePath, md5Sum, c.Task.VideoUrlID, c.Task.Message.From.ID,
@@ -49,8 +52,11 @@ func (c Cache) Add(tgFileId string, tgFileSize int, NativeFilePath string) {
 }
 
 func (c Cache) TrySend(typeSome string, pathway string) bool {
+	db := Sqlite()
+	defer db.Close()
+
 	var row CacheRow
-	err := c.Task.App.DB.Get(&row,
+	err := db.Get(&row,
 		"SELECT caption, tg_file_id FROM cache WHERE native_path_file = ? ORDER BY id DESC", pathway)
 	if err != nil {
 		return false
@@ -83,6 +89,9 @@ func (c Cache) TrySend(typeSome string, pathway string) bool {
 }
 
 func (c Cache) TrySendThroughMd5(NativeFilePath string) bool {
+	db := Sqlite()
+	defer db.Close()
+
 	var md5Sum string
 	if file, err := os.ReadFile(NativeFilePath); err == nil {
 		md5Sum = fmt.Sprintf("%x", md5.Sum(file))
@@ -93,7 +102,7 @@ func (c Cache) TrySendThroughMd5(NativeFilePath string) bool {
 	}
 
 	var row CacheRow
-	err := c.Task.App.DB.Get(&row,
+	err := db.Get(&row,
 		"SELECT caption, tg_file_id FROM cache WHERE native_md5_sum = ? ORDER BY id DESC", md5Sum)
 	if err != nil {
 		return false
@@ -113,8 +122,11 @@ func (c Cache) TrySendThroughMd5(NativeFilePath string) bool {
 }
 
 func (c Cache) TrySendThroughId() bool {
+	db := Sqlite()
+	defer db.Close()
+
 	var row CacheRow
-	err := c.Task.App.DB.Get(&row,
+	err := db.Get(&row,
 		"SELECT caption, tg_file_id FROM cache WHERE video_url_id = ? ORDER BY id DESC", c.Task.VideoUrlID)
 	if err != nil {
 		return false

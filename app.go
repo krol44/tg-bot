@@ -18,7 +18,6 @@ type App struct {
 	Bot        *tgbotapi.BotAPI
 	BotUpdates tgbotapi.UpdatesChannel
 	TorClient  *torrent.Client
-	DB         *sqlx.DB
 	Queue      chan QueueMessages
 
 	ChatsWork     ChatsWork
@@ -62,10 +61,6 @@ func Run() App {
 	u.Timeout = 60
 
 	app.BotUpdates = app.Bot.GetUpdatesChan(u)
-
-	// init sqlite
-	app.DB, err = sqlx.Connect("sqlite", config.DirDB+"/store.db")
-	//defer app.DB.Close()
 
 	// create table is not exist
 	app.initTables()
@@ -117,6 +112,13 @@ func (a *App) ObserverQueue() {
 			continue
 		}
 
+		// find yt in entities
+		for _, en := range val.Message.Entities {
+			if en.IsTextLink() {
+				val.Message.Text = en.URL
+			}
+		}
+
 		// long task
 		torrentProcess, existTorProc := a.ChatsWork.TorrentProcesses.Load(val.Message.Text)
 		if !(val.Message.Document != nil ||
@@ -150,9 +152,11 @@ func (a *App) ObserverQueue() {
 				return
 			}
 
+			db := Sqlite()
 			var userFromDB User
-			_ = a.DB.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = ?",
+			_ = db.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = ?",
 				valIn.Message.From.ID)
+			db.Close()
 
 			task := Task{Message: valIn.Message, App: a, UserFromDB: userFromDB, Translate: translate}
 			task.Translate.Code = userFromDB.LanguageCode
@@ -231,8 +235,11 @@ func (a *App) TaskAllowed(chatId int64, tr *Translate) bool {
 
 func (a *App) SendLogToChannel(howId int64, typeSomething string, something ...string) {
 	go func(a *App, typeSomething string, something ...string) {
+		db := Sqlite()
+		defer db.Close()
+
 		var UserFromDB User
-		_ = a.DB.Get(&UserFromDB, "SELECT telegram_id, name FROM users WHERE telegram_id = ?", howId)
+		_ = db.Get(&UserFromDB, "SELECT telegram_id, name FROM users WHERE telegram_id = ?", howId)
 
 		if typeSomething == "mess" {
 			a.Bot.Send(tgbotapi.NewMessage(config.ChatIdChannelLog,
@@ -258,14 +265,16 @@ func (a *App) SendLogToChannel(howId int64, typeSomething string, something ...s
 }
 
 func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
+	db := Sqlite()
+	defer db.Close()
 
 	user := struct {
 		TelegramId int64 `db:"telegram_id"`
 	}{}
-	_ = a.DB.Get(&user, "SELECT telegram_id FROM users WHERE telegram_id = ?", message.From.ID)
+	_ = db.Get(&user, "SELECT telegram_id FROM users WHERE telegram_id = ?", message.From.ID)
 
 	if user.TelegramId == 0 {
-		_, err := a.DB.Exec(`INSERT INTO users (telegram_id, name, date_create, language_code)
+		_, err := db.Exec(`INSERT INTO users (telegram_id, name, date_create, language_code)
 							VALUES (?, ?, datetime('now'), ?)`, message.From.ID, message.From.UserName,
 			message.From.LanguageCode)
 		if err != nil {
@@ -286,16 +295,15 @@ func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
 	a.Bot.Send(mess)
 }
 
-var muLogs sync.Mutex
-
 func (a *App) Logs(message any) {
-	muLogs.Lock()
-	defer muLogs.Unlock()
+	db := Sqlite()
+	defer db.Close()
+
 	marshal, err := json.Marshal(message)
 	if err != nil {
 		return
 	}
-	_, err = a.DB.Exec(`INSERT INTO logs (json, date_create)
+	_, err = db.Exec(`INSERT INTO logs (json, date_create)
 							VALUES (?, datetime('now'))`, string(marshal))
 	if err != nil {
 		log.Error(err)
@@ -303,8 +311,11 @@ func (a *App) Logs(message any) {
 }
 
 func (a *App) IsBlockUser(fromId int64) bool {
+	db := Sqlite()
+	defer db.Close()
+
 	var userFromDB User
-	_ = a.DB.Get(&userFromDB, "SELECT block FROM users WHERE telegram_id = ?",
+	_ = db.Get(&userFromDB, "SELECT block FROM users WHERE telegram_id = ?",
 		fromId)
 
 	if userFromDB.Block == 1 {
@@ -326,8 +337,19 @@ func (a *App) initFolders() {
 	}
 }
 
+func Sqlite() *sqlx.DB {
+	conn, err := sqlx.Connect("sqlite", config.DirDB+"/store.db")
+	if err != nil {
+		log.Error(err)
+	}
+	return conn
+}
+
 func (a *App) initTables() {
-	if _, err := a.DB.Exec(`
+	db := Sqlite()
+	defer db.Close()
+
+	if _, err := db.Exec(`
 create table if not exists users
 (
   telegram_id   BIGINT,
