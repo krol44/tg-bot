@@ -81,7 +81,7 @@ func (t *Task) DownloadVideoUrl() bool {
 
 	t.VideoUrlID = infoVideo.ID
 	cache := Cache{Task: t}
-	if cache.TrySendThroughId() {
+	if cache.TrySendThroughID() {
 		return false
 	}
 

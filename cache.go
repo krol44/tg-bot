@@ -121,7 +121,7 @@ func (c Cache) TrySendThroughMd5(NativeFilePath string) bool {
 	return true
 }
 
-func (c Cache) TrySendThroughId() bool {
+func (c Cache) TrySendThroughID() bool {
 	db := Sqlite()
 	defer db.Close()
 
@@ -129,6 +129,7 @@ func (c Cache) TrySendThroughId() bool {
 	err := db.Get(&row,
 		"SELECT caption, tg_file_id FROM cache WHERE video_url_id = ? ORDER BY id DESC", c.Task.VideoUrlID)
 	if err != nil {
+		log.Warn(err)
 		return false
 	}
 
@@ -137,6 +138,7 @@ func (c Cache) TrySendThroughId() bool {
 
 	_, err = c.Task.App.Bot.Send(sob)
 	if err != nil {
+		log.Error(err)
 		return false
 	}
 	c.Task.App.SendLogToChannel(c.Task.Message.From, "mess",

@@ -100,8 +100,15 @@ func (a *App) ObserverQueue() {
 		translate := &Translate{Code: val.Message.From.LanguageCode}
 
 		// commands
-		if val.Message.Text == "/start" || val.Message.Text == "/info" {
+		if strings.Contains(val.Message.Text, "/start") || val.Message.Text == "/info" {
 			a.InitUser(val.Message, translate)
+
+			sp := strings.Split(val.Message.Text, " ")
+			if len(sp) >= 2 && sp[1] != "" {
+				t := &Task{App: a, Message: val.Message, VideoUrlID: sp[1]}
+				cache := Cache{Task: t}
+				cache.TrySendThroughID()
+			}
 			continue
 		}
 		if val.Message.Text == "/support" {
