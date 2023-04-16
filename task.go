@@ -83,7 +83,7 @@ func (t *Task) Alloc(typeDl string) {
 	//}
 
 	// log
-	t.App.SendLogToChannel(t.Message.From.ID, "mess", fmt.Sprintf("start download "+typeDl))
+	t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("start download "+typeDl))
 }
 
 func (t *Task) OpenKeyBoardWithTorrentFiles() []string {
@@ -110,7 +110,7 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() []string {
 			return nil
 		}
 		// log
-		t.App.SendLogToChannel(t.Message.From.ID, "doc",
+		t.App.SendLogToChannel(t.Message.From, "doc",
 			fmt.Sprintf("upload torrent file | his turn: %d", qn.(int)+1), t.Message.Document.FileID)
 	} else {
 		torrentProcess, err = t.App.TorClient.AddMagnet(t.Message.Text)
@@ -119,7 +119,7 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() []string {
 			return nil
 		}
 		// log
-		t.App.SendLogToChannel(t.Message.From.ID, "mess",
+		t.App.SendLogToChannel(t.Message.From, "mess",
 			fmt.Sprintf("torrent magnet | his turn: %d", qn.(int)+1))
 	}
 

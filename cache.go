@@ -70,7 +70,7 @@ func (c Cache) TrySend(typeSome string, pathway string) bool {
 		if err != nil {
 			return false
 		}
-		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess",
+		c.Task.App.SendLogToChannel(c.Task.Message.From, "mess",
 			"video sent from cache - "+row.Caption)
 	}
 	if typeSome == "doc" {
@@ -81,7 +81,7 @@ func (c Cache) TrySend(typeSome string, pathway string) bool {
 			return false
 		}
 
-		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess",
+		c.Task.App.SendLogToChannel(c.Task.Message.From, "mess",
 			"doc sent from cache - "+row.Caption)
 	}
 
@@ -115,7 +115,7 @@ func (c Cache) TrySendThroughMd5(NativeFilePath string) bool {
 	if err != nil {
 		return false
 	}
-	c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess",
+	c.Task.App.SendLogToChannel(c.Task.Message.From, "mess",
 		"video sent from cache md5 - "+row.Caption)
 
 	return true
@@ -139,7 +139,7 @@ func (c Cache) TrySendThroughId() bool {
 	if err != nil {
 		return false
 	}
-	c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess",
+	c.Task.App.SendLogToChannel(c.Task.Message.From, "mess",
 		"video sent from cache video url id - "+row.Caption)
 
 	return true

@@ -57,13 +57,13 @@ func (t Task) SendVideo(file FileConverted) {
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 			"😞 "+t.Lang("Something wrong... We will be fixing it")))
 
-		t.App.SendLogToChannel(t.Message.From.ID, "mess",
+		t.App.SendLogToChannel(t.Message.From, "mess",
 			fmt.Sprintf("video file send err\n\n%s", err))
 		return
 	} else {
 		stopAction = true
 
-		t.App.SendLogToChannel(t.Message.From.ID, "video", fmt.Sprintf("video file - "+file.Name),
+		t.App.SendLogToChannel(t.Message.From, "video", fmt.Sprintf("video file - "+file.Name),
 			sentVideo.Video.FileID)
 
 		Cache.Add(Cache{Task: &t}, sentVideo.Video.FileID, sentVideo.Video.FileSize, file.FilePathNative)
@@ -100,8 +100,7 @@ func (t Task) SendTorFile() {
 	sentDoc, err := t.App.Bot.Send(doc)
 	if err != nil {
 		log.Error(err)
-		t.App.SendLogToChannel(t.Message.From.ID,
-			"mess", fmt.Sprintf("send file err\n\n%s", err))
+		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("send file err\n\n%s", err))
 	} else {
 		var (
 			fileIDStr string
@@ -114,8 +113,7 @@ func (t Task) SendTorFile() {
 			fileIDStr = sentDoc.Audio.FileID
 			fileSize = sentDoc.Audio.FileSize
 		}
-		t.App.SendLogToChannel(t.Message.From.ID,
-			"doc", fmt.Sprintf("doc file - "+t.Torrent.Name), fileIDStr)
+		t.App.SendLogToChannel(t.Message.From, "doc", fmt.Sprintf("doc file - "+t.Torrent.Name), fileIDStr)
 
 		Cache.Add(Cache{Task: &t}, fileIDStr, fileSize, t.Torrent.Name+".torrent")
 	}

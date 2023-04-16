@@ -86,7 +86,8 @@ func Run() App {
 	// check nvenc
 	ch := Convert{}.healthNvenc()
 	if !ch {
-		app.SendLogToChannel(0, "mess", "nvenc in container - error")
+		app.SendLogToChannel(&tgbotapi.User{UserName: "debug"},
+			"mess", "nvenc in container - error")
 	}
 
 	return app
@@ -233,23 +234,17 @@ func (a *App) TaskAllowed(chatId int64, tr *Translate) bool {
 	return true
 }
 
-func (a *App) SendLogToChannel(howId int64, typeSomething string, something ...string) {
-	go func(a *App, typeSomething string, something ...string) {
-		db := Sqlite()
-		defer db.Close()
-
-		var UserFromDB User
-		_ = db.Get(&UserFromDB, "SELECT telegram_id, name FROM users WHERE telegram_id = ?", howId)
-
+func (a *App) SendLogToChannel(messFrom *tgbotapi.User, typeSomething string, something ...string) {
+	go func(a *App, messFrom *tgbotapi.User, typeSomething string, something ...string) {
 		if typeSomething == "mess" {
 			a.Bot.Send(tgbotapi.NewMessage(config.ChatIdChannelLog,
-				fmt.Sprintf("%s (%d) %s", UserFromDB.Name, UserFromDB.TelegramId, something[0])))
+				fmt.Sprintf("%s (%d) %s", messFrom.UserName, messFrom.ID, something[0])))
 		}
 		if typeSomething == "doc" {
 			if len(something) == 2 {
 				sendDoc := tgbotapi.NewDocument(config.ChatIdChannelLog, tgbotapi.FileID(something[1]))
 				sendDoc.Caption = fmt.Sprintf("%s (%d) %s",
-					UserFromDB.Name, UserFromDB.TelegramId, something[0])
+					messFrom.UserName, messFrom.ID, something[0])
 				a.Bot.Send(sendDoc)
 			}
 		}
@@ -257,11 +252,11 @@ func (a *App) SendLogToChannel(howId int64, typeSomething string, something ...s
 			if len(something) == 2 {
 				sendVideo := tgbotapi.NewVideo(config.ChatIdChannelLog, tgbotapi.FileID(something[1]))
 				sendVideo.Caption = fmt.Sprintf("%s (%d) %s",
-					UserFromDB.Name, UserFromDB.TelegramId, something[0])
+					messFrom.UserName, messFrom.ID, something[0])
 				a.Bot.Send(sendVideo)
 			}
 		}
-	}(a, typeSomething, something...)
+	}(a, messFrom, typeSomething, something...)
 }
 
 func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
@@ -281,7 +276,7 @@ func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
 			log.Error(err)
 		}
 
-		a.SendLogToChannel(message.From.ID, "mess", fmt.Sprintf("new user"))
+		a.SendLogToChannel(message.From, "mess", fmt.Sprintf("new user"))
 	}
 
 	video := tgbotapi.NewVideo(message.Chat.ID,

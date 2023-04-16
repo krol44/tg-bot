@@ -20,7 +20,7 @@ func main() {
 			app.Logs(update.Message)
 
 			if update.Message.Text != "" {
-				app.SendLogToChannel(update.Message.From.ID, "mess", "Send message: "+update.Message.Text)
+				app.SendLogToChannel(update.Message.From, "mess", "Send message: "+update.Message.Text)
 			}
 
 			if app.IsBlockUser(update.Message.From.ID) {
@@ -56,7 +56,7 @@ func main() {
 				db.Close()
 
 				if whoId, err := strconv.Atoi(sp[1]); err == nil {
-					app.SendLogToChannel(int64(whoId), "mess", premiumText)
+					app.SendLogToChannel(&tgbotapi.User{ID: int64(whoId)}, "mess", premiumText)
 					_, _ = app.Bot.Send(tgbotapi.NewMessage(int64(whoId), premiumText))
 				}
 			}

@@ -45,7 +45,7 @@ func (c Convert) Run() FileConverted {
 
 	fileName := strings.TrimSuffix(path.Base(fileConvertPath), path.Ext(path.Base(fileConvertPath)))
 
-	c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", "start convert")
+	c.Task.App.SendLogToChannel(c.Task.Message.From, "mess", "start convert")
 	_, _ = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
 		fmt.Sprintf("🌪 %s \n\n🔥 "+c.Task.Lang("Convert is starting")+"...", fileName)))
 
@@ -79,7 +79,7 @@ func (c Convert) Run() FileConverted {
 		mess := fmt.Sprintf("‼️ different time (h:m) after convert, before %s - after %s",
 			timeTotal.Format("15:04"), timeTotalAfter.Format("15:04"))
 		log.Warn(mess)
-		c.Task.App.SendLogToChannel(c.Task.Message.From.ID, "mess", mess)
+		c.Task.App.SendLogToChannel(c.Task.Message.From, "mess", mess)
 	}
 
 	// create cover
@@ -118,7 +118,8 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 
 	cv := "h264_nvenc"
 	if !c.healthNvenc() {
-		c.Task.App.SendLogToChannel(0, "mess", "nvenc in container - error")
+		c.Task.App.SendLogToChannel(&tgbotapi.User{UserName: "debug"},
+			"mess", "nvenc in container - error")
 		cv = "h264"
 	}
 
