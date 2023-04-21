@@ -17,6 +17,7 @@ func (t Task) SendVideo(file FileConverted) {
 	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 		fmt.Sprintf("📲 "+t.Lang("Sending video")+" - %s \n\n🍿 "+
 			t.Lang("Time upload to the telegram ~ 1-7 minutes"), file.Name)))
+	t.App.SendLogToChannel(t.Message.From, "mess", "sending starting")
 
 	video := tgbotapi.NewVideo(t.Message.Chat.ID,
 		tgbotapi.FilePath(file.FilePath))

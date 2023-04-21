@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/md5"
+	"database/sql"
 	"fmt"
 	tgbotapi "github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
@@ -128,8 +129,12 @@ func (c Cache) TrySendThroughID() bool {
 	var row CacheRow
 	err := db.Get(&row,
 		"SELECT caption, tg_file_id FROM cache WHERE video_url_id = ? ORDER BY id DESC", c.Task.VideoUrlID)
-	if err != nil {
-		log.Warn(err)
+	if err != nil && err != sql.ErrNoRows {
+		log.Error(err)
+		return false
+	}
+
+	if row.TgFileID == "" {
 		return false
 	}
 

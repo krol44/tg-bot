@@ -61,17 +61,24 @@ func (c Convert) Run() FileConverted {
 
 	timeTotal := c.TimeTotalRaw(fileConvertPath)
 
-	// exec
-	err := c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
-	if err != nil {
-		if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
+	var err error
+
+	// check for mp4
+	if path.Ext(fileConvertPath) == ".mp4" {
+		c.Task.App.SendLogToChannel(c.Task.Message.From, "mess", "ext .mp4 - skip convert")
+		fileConvertPathOut = fileConvertPath
+	} else {
+		err := c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
+		if err != nil {
+			if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
+				return FileConverted{}
+			}
+
+			c.Task.Send(tgbotapi.NewMessage(
+				c.Task.Message.Chat.ID, "❗️ "+c.Task.Lang("Video is bad")+" - "+fileName))
+			log.Error(err)
 			return FileConverted{}
 		}
-
-		c.Task.Send(tgbotapi.NewMessage(
-			c.Task.Message.Chat.ID, "❗️ "+c.Task.Lang("Video is bad")+" - "+fileName))
-		log.Error(err)
-		return FileConverted{}
 	}
 
 	timeTotalAfter := c.TimeTotalRaw(fileConvertPathOut)

@@ -55,13 +55,7 @@ func (t *Task) DownloadVideoUrl() bool {
 		return false
 	}
 
-	var infoVideo struct {
-		ID             string `json:"id"`
-		FullTitle      string `json:"fulltitle"`
-		FilesizeApprox int    `json:"filesize_approx"`
-		Filesize       int    `json:"filesize"`
-		Filename       string `json:"_filename"`
-	}
+	var infoVideo InfoVideoUrl
 	err = json.Unmarshal(out, &infoVideo)
 	if err != nil {
 		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Video url is bad")+" 2"))
@@ -111,7 +105,7 @@ func (t *Task) DownloadVideoUrl() bool {
 		//"--ignore-errors", "--no-warnings",
 		//"--write-thumbnail", "--convert-thumbnails", "jpg",
 		"--sponsorblock-mark", "all",
-		"-f", "bv+ba/b",
+		"-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b",
 		"-S", "filesize:1990M",
 		"-o", fmt.Sprintf("%s/%%(title).100s - %%(upload_date)s.%%(ext)s", folder),
 		urlVideo,
