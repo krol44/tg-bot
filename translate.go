@@ -6,8 +6,8 @@ type Translate struct {
 
 func (t *Translate) Lang(str string) string {
 	storage := map[string]map[string]string{
-		"Write a message right here": {
-			"ru": "Напишите сообщение прямо в бота",
+		"What is happened? Write me right here": {
+			"ru": "Что случилось? Напиши мне прямо здесь",
 		},
 		"Premium is disabled": {
 			"ru": "Премиум выключен",
@@ -21,8 +21,8 @@ func (t *Translate) Lang(str string) string {
 		"Allowed only one task": {
 			"ru": "Разрешена только одна задача",
 		},
-		"Just send me torrent file with the video files": {
-			"ru": "Просто отправь мне торрент файл с видео файлами",
+		"Just send me torrent file with the video files or files": {
+			"ru": "Просто отправь мне торрент файл с видео файлами или файлами",
 		},
 		"Or send me youtube, tiktok url": {
 			"ru": "Или отправь мне youtube, tiktok url",
@@ -81,8 +81,8 @@ func (t *Translate) Lang(str string) string {
 		"Time upload to the telegram ~ 1-7 minutes": {
 			"ru": "Время загрузки в телеграм ~ 1-7 минут",
 		},
-		"Something wrong... We will be fixing it": {
-			"ru": "Что-то случилось, мы уже знаем и будем чинить",
+		"Something wrong... I will be fixing it": {
+			"ru": "Что-то случилось, буду чинить",
 		},
 		"Sending...": {
 			"ru": "Отправка...",
@@ -98,6 +98,15 @@ func (t *Translate) Lang(str string) string {
 		},
 		"Video format is not supported. Only": {
 			"ru": "Видео формат не поддерживается. Только",
+		},
+		"Getting data from torrent, please wait": {
+			"ru": "Получение данных из торрента, ожидайте",
+		},
+		"No data in the torrent file or magnet link": {
+			"ru": "Нет данных в торрент файле или magnet link",
+		},
+		"Not allowed url, I support only": {
+			"ru": "Недопустимый url, поддерживаю только",
 		},
 	}
 

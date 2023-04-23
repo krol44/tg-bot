@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/md5"
+	"fmt"
 	"github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
 	"regexp"
@@ -28,7 +30,42 @@ func main() {
 			}
 
 			app.Queue <- struct{ Message *tgbotapi.Message }{Message: update.Message}
+		}
 
+		if update.InlineQuery != nil { // if no inline query, ignore it
+
+			if update.InlineQuery.Query == "" {
+				continue
+			}
+
+			md5Url := fmt.Sprintf("%x", md5.Sum([]byte(update.InlineQuery.Query)))
+
+			url := "https://t.me/" + app.Bot.Self.UserName + "?start=" + md5Url
+			article := tgbotapi.NewInlineQueryResultArticle(update.InlineQuery.ID,
+				"🫡 Generated url", "Downloading and watching through "+app.Bot.Self.UserName+" 🫡 \n"+url)
+
+			db := Sqlite()
+			_, err := db.Exec(`INSERT INTO links (md5_url, url, telegram_id, date_create)
+									VALUES(?, ?, ?, datetime('now'))`,
+				md5Url, update.InlineQuery.Query, update.InlineQuery.From.ID)
+			db.Close()
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
+			article.Description = url
+
+			inlineConf := tgbotapi.InlineConfig{
+				InlineQueryID: update.InlineQuery.ID,
+				IsPersonal:    false,
+				CacheTime:     1,
+				Results:       []interface{}{article},
+			}
+
+			if _, err := app.Bot.Request(inlineConf); err != nil {
+				log.Println(err)
+			}
 		}
 
 		if update.ChannelPost != nil && update.ChannelPost.Chat.ID == config.ChatIdChannelLog {

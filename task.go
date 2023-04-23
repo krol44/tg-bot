@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/anacrolix/torrent"
 	"github.com/krol44/telegram-bot-api"
@@ -86,7 +87,7 @@ func (t *Task) Alloc(typeDl string) {
 	t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("start download "+typeDl))
 }
 
-func (t *Task) OpenKeyBoardWithTorrentFiles() []string {
+func (t *Task) OpenKeyBoardWithTorrentFiles() *torrent.Torrent {
 	isMagnet := strings.Contains(t.Message.Text, "magnet:?xt=")
 
 	var (
@@ -95,7 +96,6 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() []string {
 		err            error
 	)
 
-	qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
 	if !isMagnet {
 		file, err = t.App.Bot.GetFile(tgbotapi.FileConfig{FileID: t.Message.Document.FileID})
 		if err != nil {
@@ -109,18 +109,39 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() []string {
 			log.Error(err)
 			return nil
 		}
-		// log
+
 		t.App.SendLogToChannel(t.Message.From, "doc",
-			fmt.Sprintf("upload torrent file | his turn: %d", qn.(int)+1), t.Message.Document.FileID)
+			"upload torrent file", t.Message.Document.FileID)
 	} else {
 		torrentProcess, err = t.App.TorClient.AddMagnet(t.Message.Text)
 		if err != nil {
 			log.Error(err)
 			return nil
 		}
-		// log
+
+		t.App.SendLogToChannel(t.Message.From, "mess", "torrent magnet")
+	}
+
+	ctxTimeLimit, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	m := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "🕚 "+t.Lang("Getting data from torrent, please wait")))
+	select {
+	case <-torrentProcess.GotInfo():
+	case <-ctxTimeLimit.Done():
+	}
+	cancel()
+	t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, m.MessageID))
+
+	if torrentProcess.Info() == nil {
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+t.Lang("No data in the torrent file or magnet link")))
 		t.App.SendLogToChannel(t.Message.From, "mess",
-			fmt.Sprintf("torrent magnet | his turn: %d", qn.(int)+1))
+			"error torrent - no files or time limit get info")
+		return nil
+	}
+
+	if len(torrentProcess.Files()) == 1 {
+		f := torrentProcess.Files()[0]
+		t.Message.Text = f.Path() + " ~ " + strconv.FormatInt(f.Length()>>20, 10) + " MB"
+		return torrentProcess
 	}
 
 	var keyBoardButtons []tgbotapi.KeyboardButton

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/anacrolix/torrent"
 	"github.com/jmoiron/sqlx"
 	"github.com/krol44/telegram-bot-api"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 	_ "modernc.org/sqlite"
@@ -100,19 +102,30 @@ func (a *App) ObserverQueue() {
 		translate := &Translate{Code: val.Message.From.LanguageCode}
 
 		// commands
-		if strings.Contains(val.Message.Text, "/start") || val.Message.Text == "/info" {
+		if strings.Contains(val.Message.Text, "/start") {
 			a.InitUser(val.Message, translate)
 
 			sp := strings.Split(val.Message.Text, " ")
 			if len(sp) >= 2 && sp[1] != "" {
-				t := &Task{App: a, Message: val.Message, VideoUrlID: sp[1]}
-				cache := Cache{Task: t}
-				cache.TrySendThroughID()
+				var data struct {
+					Url string `db:"url"`
+				}
+				db := Sqlite()
+				err := db.Get(&data, `SELECT url FROM links WHERE md5_url = ?`, sp[1])
+				db.Close()
+				if err != nil && err != sql.ErrNoRows {
+					log.Error(err)
+					continue
+				}
+				val.Message.Text = data.Url
 			}
-			continue
+		}
+		if val.Message.Text == "/info" {
+			a.WelcomeMessage(val.Message, translate)
 		}
 		if val.Message.Text == "/support" {
-			a.Bot.Send(tgbotapi.NewMessage(val.Message.Chat.ID, translate.Lang("Write a message right here")))
+			a.Bot.Send(tgbotapi.NewMessage(val.Message.Chat.ID,
+				translate.Lang("What is happened? Write me right here")))
 			continue
 		}
 		if val.Message.Text == "/stop" {
@@ -128,13 +141,11 @@ func (a *App) ObserverQueue() {
 		}
 
 		// long task
-		torrentProcess, existTorProc := a.ChatsWork.TorrentProcesses.Load(val.Message.Text)
+		torrentProcess, _ := a.ChatsWork.TorrentProcesses.Load(val.Message.Text)
 		if !(val.Message.Document != nil ||
-			strings.Contains(val.Message.Text, "youtube.com") ||
-			strings.Contains(val.Message.Text, "youtu.be") ||
-			strings.Contains(val.Message.Text, "tiktok.com") ||
+			strings.HasPrefix(val.Message.Text, "https://") ||
 			strings.Contains(val.Message.Text, "magnet:?xt=") ||
-			existTorProc) {
+			torrentProcess != nil) {
 			continue
 		}
 
@@ -152,7 +163,8 @@ func (a *App) ObserverQueue() {
 					cleanerWait.Done()
 					cleanerWait.Wait()
 
-					log.Error("Crash queue: %s", r)
+					log.Infof("%+v", errors.WithStack(errors.New("Stacktrace")))
+					log.Errorf("Crash queue: %s", r)
 				}
 			}(valIn)
 
@@ -169,15 +181,17 @@ func (a *App) ObserverQueue() {
 			task := Task{Message: valIn.Message, App: a, UserFromDB: userFromDB, Translate: translate}
 			task.Translate.Code = userFromDB.LanguageCode
 
+			if (valIn.Message.Document != nil && valIn.Message.Document.MimeType == "application/x-bittorrent") ||
+				strings.Contains(valIn.Message.Text, "magnet:?xt=") {
+				if tp := task.OpenKeyBoardWithTorrentFiles(); tp != nil {
+					torrentProcess = tp
+				}
+			}
+
 			// global queue
 			a.ChatsWork.IncPlus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
-			if (valIn.Message.Document != nil && valIn.Message.Document.MimeType == "application/x-bittorrent") ||
-				strings.Contains(valIn.Message.Text, "magnet:?xt=") {
-				task.OpenKeyBoardWithTorrentFiles()
-			}
-
-			if existTorProc {
+			if torrentProcess != nil {
 				task.CloseKeyBoardWithTorrentFiles()
 
 				if task.DownloadTorrentFile(torrentProcess.(*torrent.Torrent)) {
@@ -197,9 +211,7 @@ func (a *App) ObserverQueue() {
 				task.RemoveMessageEdit()
 			}
 
-			if strings.Contains(valIn.Message.Text, "youtube.com") ||
-				strings.Contains(valIn.Message.Text, "youtu.be") ||
-				strings.Contains(valIn.Message.Text, "tiktok.com") {
+			if strings.HasPrefix(val.Message.Text, "https://") {
 
 				if task.DownloadVideoUrl() {
 					var c = Convert{Task: task, IsTorrent: false}
@@ -284,15 +296,20 @@ func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
 		}
 
 		a.SendLogToChannel(message.From, "mess", fmt.Sprintf("new user"))
-	}
 
+		a.WelcomeMessage(message, tr)
+	}
+}
+
+func (a *App) WelcomeMessage(message *tgbotapi.Message, tr *Translate) {
 	video := tgbotapi.NewVideo(message.Chat.ID,
 		tgbotapi.FileID(config.WelcomeFileId))
-	video.Caption = tr.Lang("Just send me torrent file with the video files") + " 😋"
+	video.Caption = tr.Lang("Just send me torrent file with the video files or files") + " 😋"
 	a.Bot.Send(video)
 	mess := tgbotapi.NewMessage(message.Chat.ID, tr.Lang("Or send me youtube, tiktok url")+" :3\n"+
 		tr.Lang("Example")+": https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
-		tr.Lang("Example")+": https://vt.tiktok.com/ZS8jY2NVd")
+		tr.Lang("Example")+": https://vt.tiktok.com/ZS8jY2NVd\n"+
+		tr.Lang("Example")+": https://vk.com/video-118281792_456242739\n")
 	mess.DisableWebPagePreview = true
 	a.Bot.Send(mess)
 }
@@ -394,6 +411,19 @@ create index if not exists cache_native_md5_sum_index
     on cache (native_md5_sum);
 create index if not exists cache_video_url_id_index
     on cache (video_url_id);
+
+create table if not exists links
+(
+    id integer
+        constraint links_pk
+            primary key autoincrement,
+    md5_url				text,
+    url					text,
+    telegram_id			BIGINT,
+    date_create			text
+);
+create index if not exists links_md5_url
+    on links (md5_url);
 				`); err != nil {
 		log.Error(err)
 	}

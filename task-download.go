@@ -14,12 +14,32 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
 
 func (t *Task) DownloadVideoUrl() bool {
 	urlVideo := t.Message.Text
+
+	allowUrls := []string{
+		"youtube.com",
+		"youtu.be",
+		"tiktok.com",
+		"vk.com/video",
+	}
+
+	var allowUrl bool
+	for _, val := range allowUrls {
+		if strings.Contains(urlVideo, val) {
+			allowUrl = true
+		}
+	}
+	if !allowUrl {
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("Not allowed url, I support only")+
+			" - "+strings.Join(allowUrls, ", ")))
+		return false
+	}
 
 	sp := strings.Split(t.Message.Text, "&")
 	if len(sp) >= 1 {
@@ -75,25 +95,23 @@ func (t *Task) DownloadVideoUrl() bool {
 
 	t.VideoUrlID = infoVideo.ID
 	cache := Cache{Task: t}
-	if cache.TrySendThroughID() {
-		return false
+	if !strings.Contains(t.Message.Text, "+skip-cache-id") {
+		if cache.TrySendThroughID() {
+			return false
+		}
 	}
 
 	cleanTitle := strings.ReplaceAll(infoVideo.FullTitle, "#", "")
 
 	infoText := fmt.Sprintf("📺 "+t.Lang("Video")+": %s", cleanTitle)
-	messInfo := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, infoText))
-	// pin
-	pinChatInfoMess := tgbotapi.PinChatMessageConfig{
-		ChatID:              messInfo.Chat.ID,
-		MessageID:           messInfo.MessageID,
-		DisableNotification: true,
-	}
-	if _, err = t.App.Bot.Request(pinChatInfoMess); err != nil {
-		log.Warning(err)
-	}
+	t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, infoText))
 
 	folder := config.DirBot + "/storage" + "/" + t.UniqueId("files-video")
+
+	quality := "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b"
+	if strings.Contains(t.Message.Text, "+quality") {
+		quality = "bv*+ba/b"
+	}
 
 	args := []string{
 		"--bidi-workaround",
@@ -105,7 +123,7 @@ func (t *Task) DownloadVideoUrl() bool {
 		//"--ignore-errors", "--no-warnings",
 		//"--write-thumbnail", "--convert-thumbnails", "jpg",
 		"--sponsorblock-mark", "all",
-		"-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b",
+		"-f", quality,
 		"-S", "filesize:1990M",
 		"-o", fmt.Sprintf("%s/%%(title).100s - %%(upload_date)s.%%(ext)s", folder),
 		urlVideo,
@@ -228,13 +246,19 @@ func (t *Task) DownloadVideoUrl() bool {
 }
 
 func (t *Task) DownloadTorrentFile(torrentProcess *torrent.Torrent) bool {
+	qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
+	t.App.SendLogToChannel(t.Message.From, "mess",
+		fmt.Sprintf("downloading torrent - %s | his turn: %d",
+			t.Message.Text, qn.(int)+1))
+
 	t.Alloc("torrent")
 
 	t.Torrent.Process = torrentProcess
 
 	var fileChosen *torrent.File
 	for _, val := range t.Torrent.Process.Files() {
-		if strings.Contains(t.Message.Text, val.DisplayPath()) {
+		recoveryPath := val.Path() + " ~ " + strconv.FormatInt(val.Length()>>20, 10) + " MB"
+		if strings.Contains(recoveryPath, t.Message.Text) {
 			if val.Length() > 1999e6 { // more 2 GB
 				t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, fmt.Sprintf("😔 "+t.Lang("File is bigger 2 GB"))))
 				return false
@@ -244,6 +268,11 @@ func (t *Task) DownloadTorrentFile(torrentProcess *torrent.Torrent) bool {
 		} else {
 			val.SetPriority(torrent.PiecePriorityNone)
 		}
+	}
+
+	if fileChosen == nil {
+		log.Error("file chosen is empty")
+		return false
 	}
 
 	// if name not correct
@@ -257,18 +286,7 @@ func (t *Task) DownloadTorrentFile(torrentProcess *torrent.Torrent) bool {
 
 	infoText := fmt.Sprintf("🎈 "+t.Lang("Torrent")+": %s", t.Torrent.Name)
 
-	messInfo := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, infoText))
-	// pin
-	pinChatInfoMess := tgbotapi.PinChatMessageConfig{
-		ChatID:              messInfo.Chat.ID,
-		MessageID:           messInfo.MessageID,
-		DisableNotification: true,
-	}
-
-	_, err := t.App.Bot.Request(pinChatInfoMess)
-	if err != nil {
-		log.Warning(err)
-	}
+	t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, infoText))
 
 	ctx, cancelProgress := context.WithCancel(context.Background())
 	go func(ctx context.Context, fileChosen *torrent.File) {

@@ -17,7 +17,7 @@ func (t Task) SendVideo(file FileConverted) {
 	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 		fmt.Sprintf("📲 "+t.Lang("Sending video")+" - %s \n\n🍿 "+
 			t.Lang("Time upload to the telegram ~ 1-7 minutes"), file.Name)))
-	t.App.SendLogToChannel(t.Message.From, "mess", "sending starting")
+	t.App.SendLogToChannel(t.Message.From, "mess", "sending video")
 
 	video := tgbotapi.NewVideo(t.Message.Chat.ID,
 		tgbotapi.FilePath(file.FilePath))
@@ -56,7 +56,7 @@ func (t Task) SendVideo(file FileConverted) {
 		log.Error(err)
 
 		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			"😞 "+t.Lang("Something wrong... We will be fixing it")))
+			"😞 "+t.Lang("Something wrong... I will be fixing it")))
 
 		t.App.SendLogToChannel(t.Message.From, "mess",
 			fmt.Sprintf("video file send err\n\n%s", err))
@@ -79,6 +79,7 @@ func (t Task) SendTorFile() {
 	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
 		fmt.Sprintf("📲 "+t.Lang("Sending...")+" - %s \n\n⏰ "+
 			t.Lang("Time upload to the telegram ~ 1-7 minutes"), t.Torrent.Name)))
+	t.App.SendLogToChannel(t.Message.From, "mess", "sending file...")
 
 	doc := tgbotapi.NewDocument(t.Message.Chat.ID,
 		tgbotapi.FilePath(t.File))
@@ -101,7 +102,11 @@ func (t Task) SendTorFile() {
 	sentDoc, err := t.App.Bot.Send(doc)
 	if err != nil {
 		log.Error(err)
-		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("send file err\n\n%s", err))
+
+		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
+			"😞 "+t.Lang("Something wrong... I will be fixing it")))
+
+		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("send file err\n\n %s", err))
 	} else {
 		var (
 			fileIDStr string
