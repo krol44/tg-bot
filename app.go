@@ -312,15 +312,17 @@ func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
 func (a *App) WelcomeMessage(message *tgbotapi.Message, tr *Translate) {
 	video := tgbotapi.NewVideo(message.Chat.ID,
 		tgbotapi.FileID(config.WelcomeFileId))
-	video.Caption = tr.Lang("Just send me torrent file with the video files or files") + " 😋"
+	video.Caption = tr.Lang("Just send me torrent file with the video files or files") + " 😋 \n\n" +
+		tr.Lang("And also you can send me") + " `magnet:?xt=` 🔗 magnet link"
 	a.Bot.Send(video)
+
 	mess := tgbotapi.NewMessage(message.Chat.ID,
-		tr.Lang("Or send me YouTube, TikTor url, examples below")+" 🫡\n"+
-			tr.Lang("Example")+" YouTube: https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
-			tr.Lang("Example")+" TikTok: https://vt.tiktok.com/ZS8jY2NVd\n"+
-			tr.Lang("Example")+" VK Video: https://vk.com/video-118281792_456242739\n"+
-			tr.Lang("Example")+" Spotify track: https://open.spotify.com/track/1hEh8Hc9lBAFWUghHBsCel\n"+
-			tr.Lang("Example")+" Spotify album: https://open.spotify.com/album/1YxUJdI0JWsXGGq8xa1SLt\n")
+		tr.Lang("Or send me YouTube, TikTok url, examples below")+" 🫡\n\n"+
+			tr.Lang("Example")+" YouTube:\n https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
+			tr.Lang("Example")+" TikTok:\n https://vt.tiktok.com/ZS8jY2NVd\n"+
+			tr.Lang("Example")+" VK Video:\n https://vk.com/video-118281792_456242739\n"+
+			tr.Lang("Example")+" Spotify track:\n https://open.spotify.com/track/1hEh8Hc9lBAFWUghHBsCel\n"+
+			tr.Lang("Example")+" Spotify album:\n https://open.spotify.com/album/1YxUJdI0JWsXGGq8xa1SLt\n")
 	mess.DisableWebPagePreview = true
 	a.Bot.Send(mess)
 }

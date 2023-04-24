@@ -24,8 +24,11 @@ func (t *Translate) Lang(str string) string {
 		"Just send me torrent file with the video files or files": {
 			"ru": "Просто отправь мне торрент файл с видео файлами или файлами",
 		},
-		"Or send me YouTube, TikTor url, examples below": {
-			"ru": "Или отправь мне YouTube, TikTor url, примеры ниже",
+		"And also you can send me": {
+			"ru": "А также вы можете прислать мне",
+		},
+		"Or send me YouTube, TikTok url, examples below": {
+			"ru": "Или отправь мне YouTube, TikTok url, примеры ниже",
 		},
 		"Example": {
 			"ru": "Пример",

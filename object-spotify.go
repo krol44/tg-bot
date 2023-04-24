@@ -133,12 +133,14 @@ func (o *ObjectSpotify) Download() bool {
 	}
 
 	var filesPath []string
-	for _, file := range dir {
+	for i, file := range dir {
 		path := folder + "/" + file.Name()
 
 		cache := Cache{Task: o.Task}
 		if cache.TrySendThroughMd5(path) {
-			time.Sleep(time.Second * 5)
+			if i+1 != len(dir) {
+				time.Sleep(time.Second * 5)
+			}
 			continue
 		}
 
@@ -157,10 +159,13 @@ func (o *ObjectSpotify) Convert() bool {
 }
 
 func (o *ObjectSpotify) Send() bool {
-	for _, val := range o.Task.Files {
+	for i, val := range o.Task.Files {
 		o.Task.File = val
 		o.Task.SendAudio()
-		time.Sleep(time.Second * 5)
+
+		if i+1 != len(o.Task.Files) {
+			time.Sleep(time.Second * 5)
+		}
 	}
 	return true
 }
