@@ -38,14 +38,14 @@ func (c Cache) Add(tgFileId string, tgFileSize int, NativeFilePath string) {
 	caption := strings.TrimSuffix(path.Base(NativeFilePath), path.Ext(path.Base(NativeFilePath)))
 
 	var urlHttp string
-	if c.Task.VideoUrlHttp != "" {
-		urlHttp = "\n" + c.Task.VideoUrlHttp
+	if c.Task.DescriptionUrl != "" {
+		urlHttp = "\n" + c.Task.DescriptionUrl
 	}
 
 	_, err := db.Exec(`INSERT INTO cache
 		(caption, native_path_file, native_md5_sum, video_url_id, tg_from_id, tg_file_id, tg_file_size, date_create)
 		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-		caption+urlHttp, NativeFilePath, md5Sum, c.Task.VideoUrlID, c.Task.Message.From.ID,
+		caption+urlHttp, NativeFilePath, md5Sum, c.Task.UrlIDForCache, c.Task.Message.From.ID,
 		tgFileId, tgFileSize)
 	if err != nil {
 		log.Error(err)
@@ -128,7 +128,7 @@ func (c Cache) TrySendThroughID() bool {
 
 	var row CacheRow
 	err := db.Get(&row,
-		"SELECT caption, tg_file_id FROM cache WHERE video_url_id = ? ORDER BY id DESC", c.Task.VideoUrlID)
+		"SELECT caption, tg_file_id FROM cache WHERE video_url_id = ? ORDER BY id DESC", c.Task.UrlIDForCache)
 	if err != nil && err != sql.ErrNoRows {
 		log.Error(err)
 		return false

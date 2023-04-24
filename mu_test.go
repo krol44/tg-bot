@@ -9,7 +9,7 @@ import (
 )
 
 func TestMu(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	cw := ChatsWork{m: sync.Map{}}
 	var sw sync.WaitGroup

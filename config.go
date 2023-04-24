@@ -76,5 +76,9 @@ func logSetup() {
 		log.SetOutput(os.Stdout)
 	}
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.InfoLevel)
+	if config.IsDev {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
 }

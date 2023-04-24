@@ -1,6 +1,28 @@
 package main
 
-type InfoVideoUrl struct {
+import "github.com/anacrolix/torrent"
+
+type ObjectHandler interface {
+	Download() bool
+	Convert() bool
+	Send() bool
+	Clean()
+}
+
+type ObjectVideoUrl struct {
+	Task *Task
+}
+
+type ObjectTorrent struct {
+	Task           *Task
+	TorrentProcess *torrent.Torrent
+}
+
+type ObjectSpotify struct {
+	Task *Task
+}
+
+type InfoYtDlp struct {
 	ID             string `json:"id"`
 	FullTitle      string `json:"fulltitle"`
 	FilesizeApprox int    `json:"filesize_approx"`

@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/anacrolix/torrent"
+	"github.com/dustin/go-humanize"
 	"github.com/krol44/telegram-bot-api"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"math/rand"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +21,8 @@ type Task struct {
 	App             *App
 	Message         *tgbotapi.Message
 	File            string
+	Files           []string
+	FileConverted   FileConverted
 	MessageEditID   int
 	MessageTextLast string
 	UserFromDB      User
@@ -27,8 +32,15 @@ type Task struct {
 		Process  *torrent.Torrent
 		Progress int64
 	}
-	VideoUrlHttp string
-	VideoUrlID   string
+	DescriptionUrl string
+	UrlIDForCache  string
+}
+
+func (t *Task) Run(th ObjectHandler) {
+	th.Download()
+	th.Convert()
+	th.Send()
+	th.Clean()
 }
 
 func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
@@ -65,23 +77,8 @@ func (t *Task) Alloc(typeDl string) {
 		time.Sleep(4 * time.Second)
 	}
 
-	// todo if you need
-	//if t.UserFromDB.Premium == 0 && typeDl == "torrent" {
-	//	messPremium := tgbotapi.NewMessage(t.Message.Chat.ID, "‼️ "+
-	//		t.Lang("Only the first 5 minutes video is "+
-	//			"available and torrent in the zip archive don't available")+"\n\n"+
-	//		fmt.Sprintf(`<a href="%s">%s</a>`,
-	//			"https://www.donationalerts.com/r/torpurrbot",
-	//			t.Lang("To donate, for to improve the bot"))+" 🔥\n"+
-	//		"("+t.Lang("Write your telegram username in the body message."+
-	//		" After donation, you will get full access for 30 days")+")")
-	//	messPremium.ParseMode = tgbotapi.ModeHTML
-	//	t.Send(messPremium)
-	//
-	//	rand.Seed(time.Now().Unix())
-	//	t.Send(tgbotapi.NewSticker(t.Message.Chat.ID,
-	//		tgbotapi.FileID(config.CuteStickers[rand.Intn(len(config.CuteStickers))])))
-	//}
+	// if you need, open
+	// t.PremiumAd(typeDl)
 
 	// log
 	t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("start download "+typeDl))
@@ -236,6 +233,65 @@ func (t *Task) Cleaner() {
 	}
 
 	t.App.LockForRemove.Done()
+}
+
+func (t *Task) StatDlTor(fileChosen *torrent.File) (string, float64) {
+	if t.Torrent.Process.Info() == nil {
+		return "", 0
+	}
+
+	currentProgress := t.Torrent.Process.BytesCompleted()
+	downloadSpeed := humanize.Bytes(uint64(currentProgress-t.Torrent.Progress)) + "/s"
+	t.Torrent.Progress = currentProgress
+
+	ctlInfo := fileChosen.FileInfo().Length
+	complete := humanize.Bytes(uint64(fileChosen.BytesCompleted()))
+	size := humanize.Bytes(uint64(ctlInfo))
+	var percentage float64
+	if ctlInfo != 0 {
+		percentage = float64(fileChosen.BytesCompleted()) / float64(ctlInfo) * 100
+	}
+
+	stat := fmt.Sprintf(
+		"🔥 "+t.Lang("Progress")+": \t%s / %s  %.2f%%\n\n🔽 "+t.Lang("Speed")+
+			": %s (Act. peers %d / Total %d)",
+		complete, size, percentage, downloadSpeed, t.Torrent.Process.Stats().ActivePeers,
+		t.Torrent.Process.Stats().TotalPeers)
+
+	return stat, percentage
+}
+
+func (t *Task) PremiumAd(typeDl string) {
+	if t.UserFromDB.Premium == 0 && typeDl == "torrent" {
+		messPremium := tgbotapi.NewMessage(t.Message.Chat.ID, "‼️ "+
+			t.Lang("Only the first 5 minutes video is "+
+				"available and torrent in the zip archive don't available")+"\n\n"+
+			fmt.Sprintf(`<a href="%s">%s</a>`,
+				"https://www.donationalerts.com/r/torpurrbot",
+				t.Lang("To donate, for to improve the bot"))+" 🔥\n"+
+			"("+t.Lang("Write your telegram username in the body message."+
+			" After donation, you will get full access for 30 days")+")")
+		messPremium.ParseMode = tgbotapi.ModeHTML
+		t.Send(messPremium)
+
+		rand.New(rand.NewSource(time.Now().UnixNano()))
+		t.Send(tgbotapi.NewSticker(t.Message.Chat.ID,
+			tgbotapi.FileID(config.CuteStickers[rand.Intn(len(config.CuteStickers))])))
+	}
+}
+
+func (Task) DirSize(path string) (int64, error) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	return size, err
 }
 
 func (Task) IsAllowFormatForConvert(pathWay string) bool {

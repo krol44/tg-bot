@@ -24,14 +24,17 @@ func (t *Translate) Lang(str string) string {
 		"Just send me torrent file with the video files or files": {
 			"ru": "Просто отправь мне торрент файл с видео файлами или файлами",
 		},
-		"Or send me youtube, tiktok url": {
-			"ru": "Или отправь мне youtube, tiktok url",
+		"Or send me YouTube, TikTor url, examples below": {
+			"ru": "Или отправь мне YouTube, TikTor url, примеры ниже",
 		},
 		"Example": {
 			"ru": "Пример",
 		},
 		"Video url is bad": {
 			"ru": "Видео url плохой",
+		},
+		"Audio url is bad": {
+			"ru": "Аудио url плохой",
 		},
 		"Video": {
 			"ru": "Видео",
@@ -84,8 +87,11 @@ func (t *Translate) Lang(str string) string {
 		"Something wrong... I will be fixing it": {
 			"ru": "Что-то случилось, буду чинить",
 		},
-		"Sending...": {
-			"ru": "Отправка...",
+		"Sending audio": {
+			"ru": "Отправка аудио",
+		},
+		"Sending doc": {
+			"ru": "Отправка файла",
 		},
 		"Available only for users who support us": {
 			"ru": "Доступно только для пользователей, которые поддерживают нас",

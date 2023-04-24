@@ -18,7 +18,7 @@ import (
 )
 
 type Convert struct {
-	Task      Task
+	Task      *Task
 	IsTorrent bool
 }
 

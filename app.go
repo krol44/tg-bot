@@ -193,34 +193,42 @@ func (a *App) ObserverQueue() {
 
 			if torrentProcess != nil {
 				task.CloseKeyBoardWithTorrentFiles()
-
-				if task.DownloadTorrentFile(torrentProcess.(*torrent.Torrent)) {
-					var c = Convert{Task: task, IsTorrent: true}
-					if c.CheckExistVideo() {
-						task.SendVideo(c.Run())
-					} else {
-						if false { //if userFromDB.Premium == 0 {
-							task.Send(tgbotapi.NewMessage(task.Message.Chat.ID,
-								fmt.Sprintf("❗️ "+task.Lang("Available only for users who support us"))))
-						} else {
-							task.SendTorFile()
-						}
-					}
+				t := &ObjectTorrent{
+					Task:           &task,
+					TorrentProcess: torrentProcess.(*torrent.Torrent),
 				}
+				task.Run(t)
+
+				//if task.DownloadTorrentFile(torrentProcess.(*torrent.Torrent)) {
+				//	var c = Convert{Task: task, IsTorrent: true}
+				//	if c.CheckExistVideo() {
+				//		//task.SendVideo(c.Run())
+				//	} else {
+				//		if false { //if userFromDB.Premium == 0 {
+				//			task.Send(tgbotapi.NewMessage(task.Message.Chat.ID,
+				//				fmt.Sprintf("❗️ "+task.Lang("Available only for users who support us"))))
+				//		} else {
+				//			task.SendTorFile()
+				//		}
+				//	}
+				//}
 
 				task.RemoveMessageEdit()
 			}
 
-			if strings.HasPrefix(val.Message.Text, "https://") {
-
-				if task.DownloadVideoUrl() {
-					var c = Convert{Task: task, IsTorrent: false}
-					if c.CheckExistVideo() {
-						task.SendVideo(c.Run())
+			if strings.HasPrefix(valIn.Message.Text, "https://") {
+				if strings.Contains(valIn.Message.Text, "https://open.spotify.com/track/") ||
+					strings.Contains(valIn.Message.Text, "https://open.spotify.com/album") {
+					ym := &ObjectSpotify{
+						Task: &task,
 					}
+					task.Run(ym)
+				} else {
+					vuc := &ObjectVideoUrl{
+						Task: &task,
+					}
+					task.Run(vuc)
 				}
-
-				task.RemoveMessageEdit()
 			}
 
 			if _, bo := task.App.ChatsWork.StopTasks.LoadAndDelete(task.Message.Chat.ID); bo {
@@ -306,10 +314,13 @@ func (a *App) WelcomeMessage(message *tgbotapi.Message, tr *Translate) {
 		tgbotapi.FileID(config.WelcomeFileId))
 	video.Caption = tr.Lang("Just send me torrent file with the video files or files") + " 😋"
 	a.Bot.Send(video)
-	mess := tgbotapi.NewMessage(message.Chat.ID, tr.Lang("Or send me youtube, tiktok url")+" :3\n"+
-		tr.Lang("Example")+": https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
-		tr.Lang("Example")+": https://vt.tiktok.com/ZS8jY2NVd\n"+
-		tr.Lang("Example")+": https://vk.com/video-118281792_456242739\n")
+	mess := tgbotapi.NewMessage(message.Chat.ID,
+		tr.Lang("Or send me YouTube, TikTor url, examples below")+" 🫡\n"+
+			tr.Lang("Example")+" YouTube: https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
+			tr.Lang("Example")+" TikTok: https://vt.tiktok.com/ZS8jY2NVd\n"+
+			tr.Lang("Example")+" VK Video: https://vk.com/video-118281792_456242739\n"+
+			tr.Lang("Example")+" Spotify track: https://open.spotify.com/track/1hEh8Hc9lBAFWUghHBsCel\n"+
+			tr.Lang("Example")+" Spotify album: https://open.spotify.com/album/1YxUJdI0JWsXGGq8xa1SLt\n")
 	mess.DisableWebPagePreview = true
 	a.Bot.Send(mess)
 }
