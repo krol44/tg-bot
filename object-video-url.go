@@ -23,6 +23,13 @@ func (o *ObjectVideoUrl) Download() bool {
 		"vk.com/video",
 	}
 
+	var urlsForSend []string
+	urlsForSend = append(allowUrls, urlsForSend...)
+	urlsForSend = append(urlsForSend, []string{
+		"open.spotify.com/track",
+		"open.spotify.com/album",
+	}...)
+
 	var allowUrl bool
 	for _, val := range allowUrls {
 		if strings.Contains(urlVideo, val) {
@@ -30,8 +37,10 @@ func (o *ObjectVideoUrl) Download() bool {
 		}
 	}
 	if !allowUrl {
-		o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
-			"❗️ "+o.Task.Lang("Not allowed url, I support only")+" - "+strings.Join(allowUrls, ", ")))
+		m := tgbotapi.NewMessage(o.Task.Message.Chat.ID,
+			"❗️ "+o.Task.Lang("Not allowed url, I support only:")+"\n"+strings.Join(urlsForSend, "\n"))
+		m.DisableWebPagePreview = true
+		o.Task.Send(m)
 		return false
 	}
 

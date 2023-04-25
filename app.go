@@ -199,20 +199,6 @@ func (a *App) ObserverQueue() {
 				}
 				task.Run(t)
 
-				//if task.DownloadTorrentFile(torrentProcess.(*torrent.Torrent)) {
-				//	var c = Convert{Task: task, IsTorrent: true}
-				//	if c.CheckExistVideo() {
-				//		//task.SendVideo(c.Run())
-				//	} else {
-				//		if false { //if userFromDB.Premium == 0 {
-				//			task.Send(tgbotapi.NewMessage(task.Message.Chat.ID,
-				//				fmt.Sprintf("❗️ "+task.Lang("Available only for users who support us"))))
-				//		} else {
-				//			task.SendTorFile()
-				//		}
-				//	}
-				//}
-
 				task.RemoveMessageEdit()
 			}
 

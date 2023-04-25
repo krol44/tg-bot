@@ -146,6 +146,10 @@ func (o *ObjectTorrent) Send() bool {
 		path.Ext(o.Task.File) == ".wav" {
 		return o.Task.SendAudio()
 	} else {
+		//if o.Task.UserFromDB.Premium == 0 {
+		//	o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
+		//		fmt.Sprintf("❗️ "+o.Task.Lang("Available only for users who support us"))))
+		//}
 		return o.Task.SendDoc()
 	}
 }
