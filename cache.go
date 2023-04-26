@@ -89,6 +89,29 @@ func (c Cache) TrySend(typeSome string, pathway string) bool {
 	return true
 }
 
+func (c Cache) GetFileIdThroughMd5(NativeFilePath string) string {
+	db := Sqlite()
+	defer db.Close()
+
+	var md5Sum string
+	if file, err := os.ReadFile(NativeFilePath); err == nil {
+		md5Sum = fmt.Sprintf("%x", md5.Sum(file))
+	}
+
+	if md5Sum == "" {
+		return ""
+	}
+
+	var row CacheRow
+	err := db.Get(&row,
+		"SELECT tg_file_id FROM cache WHERE native_md5_sum = ? ORDER BY id DESC", md5Sum)
+	if err != nil {
+		return ""
+	}
+
+	return row.TgFileID
+}
+
 func (c Cache) TrySendThroughMd5(NativeFilePath string) bool {
 	db := Sqlite()
 	defer db.Close()

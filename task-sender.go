@@ -134,20 +134,29 @@ func (t *Task) SendDoc() bool {
 	return true
 }
 
+func chunkSlice[T any](items []T, chunkSize int) (chunks [][]T) {
+	for chunkSize < len(items) {
+		items, chunks = items[chunkSize:], append(chunks, items[0:chunkSize:chunkSize])
+	}
+	return append(chunks, items)
+}
+
+type CacheLog struct {
+	From      *tgbotapi.User
+	FileID    string
+	FromCache bool
+}
+
 func (t *Task) SendAudio() bool {
-	if t.File == "" {
+	if len(t.Files) == 0 {
 		return false
 	}
 
-	name := strings.TrimSuffix(path.Base(t.File), path.Ext(path.Base(t.File)))
+	var logs []CacheLog
 
-	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-		fmt.Sprintf("📲 "+t.Lang("Sending audio")+" - %s \n\n⏰ "+
-			t.Lang("Time upload to the telegram ~ 1-7 minutes"), name)))
+	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, "📲 "+t.Lang("Sending audio")+"\n\n⏰ "+
+		t.Lang("Time upload to the telegram ~ 1-7 minutes")))
 	t.App.SendLogToChannel(t.Message.From, "mess", "sending audio")
-
-	audio := tgbotapi.NewAudio(t.Message.Chat.ID, tgbotapi.FilePath(t.File))
-	audio.Caption = name + "\n" + t.DescriptionUrl + signAdvt
 
 	stopAction := false
 	go func(stopAction *bool) {
@@ -162,25 +171,74 @@ func (t *Task) SendAudio() bool {
 		}
 	}(&stopAction)
 
-	sentDoc, err := t.App.Bot.Send(audio)
-	if err != nil {
-		log.Error(err)
+	for _, chuck := range chunkSlice(t.Files, 10) {
+		var filesNameForCache []string
+		var files []interface{}
 
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			"😞 "+t.Lang("Something wrong... I will be fixing it")))
+		for i, val := range chuck {
+			fileID := Cache.GetFileIdThroughMd5(Cache{Task: t}, val)
+			name := strings.TrimSuffix(path.Base(val), path.Ext(path.Base(val)))
+			if fileID != "" {
+				log.Debug("add from cache")
+				tgFileID := tgbotapi.NewInputMediaAudio(tgbotapi.FileID(fileID))
+				tgFileID.Caption = name + "\n"
+				if i == len(chuck)-1 {
+					tgFileID.Caption += "\n" + t.DescriptionUrl + signAdvt
+				}
+				files = append(files, tgFileID)
+			} else {
+				log.Debug("add from file")
+				tgFilePath := tgbotapi.NewInputMediaAudio(tgbotapi.FilePath(val))
+				tgFilePath.Caption = name + "\n"
+				if i == len(chuck)-1 {
+					tgFilePath.Caption = "\n" + t.DescriptionUrl + signAdvt
+				}
+				files = append(files, tgFilePath)
+				filesNameForCache = append(filesNameForCache, val)
+			}
+		}
 
-		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("send audio err\n\n %s", err))
-	} else {
-		fileIDStr := sentDoc.Audio.FileID
-		fileSize := sentDoc.Audio.FileSize
+		sentAudio, err := t.App.Bot.SendMediaGroup(tgbotapi.NewMediaGroup(t.Message.Chat.ID, files))
+		if err != nil {
+			log.Error(err)
 
-		t.App.SendLogToChannel(t.Message.From, "doc",
-			fmt.Sprintf("audio file - "+name), fileIDStr)
+			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
+				"😞 "+t.Lang("Something wrong... I will be fixing it")))
 
-		Cache.Add(Cache{Task: t}, fileIDStr, fileSize, t.File)
+			t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("send audio err\n\n %s", err))
+		} else {
+			for _, st := range sentAudio {
+				var pathForSave string
+				for _, fn := range filesNameForCache {
+					if strings.Contains(fn, st.Audio.FileName) {
+						pathForSave = fn
+					}
+				}
+
+				fileIDStr := st.Audio.FileID
+				fileSize := st.Audio.FileSize
+				if pathForSave != "" {
+					Cache.Add(Cache{Task: t}, fileIDStr, fileSize, pathForSave)
+					logs = append(logs, CacheLog{From: t.Message.From, FileID: fileIDStr, FromCache: false})
+				} else {
+					logs = append(logs, CacheLog{From: t.Message.From, FileID: fileIDStr, FromCache: true})
+				}
+			}
+		}
 	}
 
 	stopAction = true
+
+	go func() {
+		for _, s := range logs {
+			var ic string
+			if s.FromCache {
+				ic = " from cache"
+			}
+			t.App.SendLogToChannel(s.From, "doc", "audio file"+ic, s.FileID)
+			time.Sleep(time.Second * 2)
+		}
+	}()
 
 	return true
 }
