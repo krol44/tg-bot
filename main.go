@@ -21,19 +21,24 @@ func main() {
 			// logs sqlite
 			app.Logs(update.Message)
 
+			isBlock := app.IsBlockUser(update.Message.From.ID)
+
 			if update.Message.Text != "" {
-				app.SendLogToChannel(update.Message.From, "mess", "Send message: "+update.Message.Text)
+				suffix := "Sent message: "
+				if isBlock {
+					suffix = "[blocked] Sent message: "
+				}
+				app.SendLogToChannel(update.Message.From, "mess", suffix+update.Message.Text)
 			}
 
-			if app.IsBlockUser(update.Message.From.ID) {
+			if isBlock {
 				continue
 			}
 
 			app.Queue <- struct{ Message *tgbotapi.Message }{Message: update.Message}
 		}
 
-		if update.InlineQuery != nil { // if no inline query, ignore it
-
+		if update.InlineQuery != nil {
 			if update.InlineQuery.Query == "" {
 				continue
 			}
@@ -96,6 +101,29 @@ func main() {
 					app.SendLogToChannel(&tgbotapi.User{ID: int64(whoId)}, "mess", premiumText)
 					_, _ = app.Bot.Send(tgbotapi.NewMessage(int64(whoId), premiumText))
 				}
+			}
+
+			if len(sp) == 2 && sp[0] == "/block" {
+				db := Sqlite()
+
+				var userFromDB User
+				_ = db.Get(&userFromDB, "SELECT name, block FROM users WHERE telegram_id = ?",
+					sp[1])
+
+				block := 0
+				if userFromDB.Block == 0 {
+					block = 1
+				}
+				_, err := db.Exec("UPDATE users SET block = ? WHERE telegram_id = ?", block, sp[1])
+				if err != nil {
+					log.Error(err)
+				}
+				if whoId, err := strconv.Atoi(sp[1]); err == nil {
+					app.SendLogToChannel(&tgbotapi.User{ID: int64(whoId)}, "mess",
+						fmt.Sprintf("block=%d", block))
+				}
+
+				db.Close()
 			}
 
 			if update.ChannelPost.ReplyToMessage != nil {

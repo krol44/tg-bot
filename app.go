@@ -117,7 +117,10 @@ func (a *App) ObserverQueue() {
 					log.Error(err)
 					continue
 				}
-				val.Message.Text = data.Url
+				if data.Url != "" {
+					val.Message.Text = data.Url
+					a.Bot.Send(tgbotapi.NewMessage(val.Message.Chat.ID, data.Url))
+				}
 			}
 		}
 		if val.Message.Text == "/info" {
