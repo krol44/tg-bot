@@ -255,7 +255,7 @@ func (o *ObjectVideoUrl) Download() bool {
 func (o *ObjectVideoUrl) Convert() bool {
 	var c = Convert{Task: o.Task, IsTorrent: false}
 
-	if c.CheckExistVideo() {
+	if c.Task.IsAllowFormatForConvert(c.Task.File) {
 		o.Task.FileConverted = c.Run()
 
 		return true

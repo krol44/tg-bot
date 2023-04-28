@@ -105,9 +105,6 @@ func (t *Translate) Lang(str string) string {
 		"File is bigger 2 GB": {
 			"ru": "Файл больше 2 GB",
 		},
-		"Video format is not supported. Only": {
-			"ru": "Видео формат не поддерживается. Только",
-		},
 		"Getting data from torrent, please wait": {
 			"ru": "Получение данных из торрента, ожидайте",
 		},

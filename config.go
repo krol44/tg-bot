@@ -49,7 +49,7 @@ func init() {
 		os.Getenv("BOT_TOKEN"),
 		os.Getenv("TG_PATH_LOCAL"),
 		"http://" + os.Getenv("TG_API_ENDPOINT") + "/bot%s/%s",
-		[]string{".avi", ".mkv", ".mp4", ".MP4", ".m4v", ".flv", ".TS", ".ts", ".mov", ".wmv", ".webm"},
+		[]string{".avi", ".mkv", ".mp4", ".m4v", ".flv", ".ts", ".mov", ".wmv", ".webm", ".3gp"},
 		2,
 		[]string{
 			"CAACAgIAAxkBAAIEW2OcfHb7yPa6z59rHlFiTTUTkA3XAAJ-GQACHiDBS43V6msCr8MXKwQ",

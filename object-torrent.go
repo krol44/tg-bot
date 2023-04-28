@@ -131,7 +131,7 @@ func (o *ObjectTorrent) Download() bool {
 func (o *ObjectTorrent) Convert() bool {
 	var c = Convert{Task: o.Task, IsTorrent: true}
 
-	if c.CheckExistVideo() {
+	if c.Task.IsAllowFormatForConvert(c.Task.File) {
 		o.Task.FileConverted = c.Run()
 
 		return true
@@ -146,13 +146,17 @@ func (o *ObjectTorrent) Send() bool {
 		path.Ext(o.Task.File) == ".wav" {
 		o.Task.Files = []string{o.Task.File}
 		return o.Task.SendAudio()
-	} else {
-		//if o.Task.UserFromDB.Premium == 0 {
-		//	o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
-		//		fmt.Sprintf("❗️ "+o.Task.Lang("Available only for users who support us"))))
-		//}
-		return o.Task.SendDoc()
 	}
+
+	if path.Ext(o.Task.FileConverted.FilePath) == ".mp4" {
+		return o.Task.SendVideo()
+	}
+
+	//if o.Task.UserFromDB.Premium == 0 {
+	//	o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
+	//		fmt.Sprintf("❗️ "+o.Task.Lang("Available only for users who support us"))))
+	//}
+	return o.Task.SendDoc()
 }
 
 func (o *ObjectTorrent) Clean() {

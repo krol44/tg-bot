@@ -296,7 +296,7 @@ func (Task) DirSize(path string) (int64, error) {
 
 func (Task) IsAllowFormatForConvert(pathWay string) bool {
 	for _, ext := range config.AllowVideoFormats {
-		if ext == path.Ext(pathWay) {
+		if strings.ToLower(ext) == strings.ToLower(path.Ext(pathWay)) {
 			return true
 		}
 	}

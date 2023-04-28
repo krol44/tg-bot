@@ -36,13 +36,6 @@ func (c Convert) Run() FileConverted {
 	infoVideo := c.GetInfoVideo(fileConvertPath)
 	bitrate, _ := strconv.Atoi(infoVideo.Format.BitRate)
 
-	if !c.Task.IsAllowFormatForConvert(fileConvertPath) {
-		_, _ = c.Task.App.Bot.Send(tgbotapi.NewEditMessageText(c.Task.Message.Chat.ID, c.Task.MessageEditID,
-			fmt.Sprintf("❗️ "+c.Task.Lang("Video format is not supported. Only"+" "+
-				strings.Join(config.AllowVideoFormats, ", ")))))
-		return FileConverted{}
-	}
-
 	fileName := strings.TrimSuffix(path.Base(fileConvertPath), path.Ext(path.Base(fileConvertPath)))
 
 	c.Task.App.SendLogToChannel(c.Task.Message.From, "mess", "start convert")
@@ -230,16 +223,6 @@ func (c Convert) CreateFolderConvert(fileName string) (string, error) {
 	}
 
 	return folderConvert, nil
-}
-
-func (c Convert) CheckExistVideo() bool {
-	existVideo := false
-
-	if c.Task.IsAllowFormatForConvert(c.Task.File) {
-		existVideo = true
-	}
-
-	return existVideo
 }
 
 func (c Convert) CreateCover(videoFile string, fileCoverPath string, timeTotal time.Time) error {
