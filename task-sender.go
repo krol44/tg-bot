@@ -59,8 +59,7 @@ func (t *Task) SendVideo() bool {
 		stopAction = true
 		log.Error(err)
 
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			"😞 "+t.Lang("Something wrong... I will be fixing it")))
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😞 "+t.Lang("Something wrong... I will be fixing it")))
 
 		t.App.SendLogToChannel(t.Message.From, "mess",
 			fmt.Sprintf("video file send err\n\n%s", err))
@@ -107,8 +106,7 @@ func (t *Task) SendDoc() bool {
 	if err != nil {
 		log.Error(err)
 
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-			"😞 "+t.Lang("Something wrong... I will be fixing it")))
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😞 "+t.Lang("Something wrong... I will be fixing it")))
 
 		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("send file err\n\n %s", err))
 	} else {
@@ -202,8 +200,7 @@ func (t *Task) SendAudio() bool {
 		if err != nil {
 			log.Error(err)
 
-			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID,
-				"😞 "+t.Lang("Something wrong... I will be fixing it")))
+			t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😞 "+t.Lang("Something wrong... I will be fixing it")))
 
 			t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("send audio err\n\n %s", err))
 		} else {

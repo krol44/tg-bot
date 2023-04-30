@@ -106,9 +106,6 @@ func (o *ObjectVideoUrl) Download() bool {
 
 	cleanTitle := strings.ReplaceAll(infoVideo.FullTitle, "#", "")
 
-	infoText := fmt.Sprintf("📺 "+o.Task.Lang("Video")+": %s", cleanTitle)
-	o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID, infoText))
-
 	folder := config.DirBot + "/storage" + "/" + o.Task.UniqueId("files-video")
 
 	quality := "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b"
@@ -242,6 +239,17 @@ func (o *ObjectVideoUrl) Download() bool {
 	}
 
 	stopProtected = true
+
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		log.Error(err)
+	}
+
+	if fileInfo.Size() > 1999e6 {
+		o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
+			"❗️ "+o.Task.Lang("File is bigger 2 GB")))
+		return false
+	}
 
 	if cache.TrySendThroughMd5(filePath) {
 		return false

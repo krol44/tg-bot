@@ -52,10 +52,6 @@ func (o *ObjectTorrent) Download() bool {
 
 	o.Task.Torrent.Name = fileChosen.DisplayPath()
 
-	infoText := fmt.Sprintf("🎈 "+o.Task.Lang("Torrent")+": %s", o.Task.Torrent.Name)
-
-	o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID, infoText))
-
 	ctx, cancelProgress := context.WithCancel(context.Background())
 	go func(ctx context.Context, fileChosen *torrent.File) {
 		for {

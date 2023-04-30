@@ -39,14 +39,8 @@ func (t *Translate) Lang(str string) string {
 		"Audio url is bad": {
 			"ru": "Аудио url плохой",
 		},
-		"Video": {
-			"ru": "Видео",
-		},
 		"Download progress": {
 			"ru": "Прогресс скачивания",
-		},
-		"Torrent": {
-			"ru": "Торрент",
 		},
 		"Torrent downloaded, wait next step": {
 			"ru": "Торрент скачен, ожидайте следующий шаг",
