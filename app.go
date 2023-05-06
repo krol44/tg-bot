@@ -305,13 +305,30 @@ func (a *App) WelcomeMessage(message *tgbotapi.Message, tr *Translate) {
 		tr.Lang("And also you can send me") + " `magnet:?xt=` 🔗 magnet link"
 	a.Bot.Send(video)
 
-	mess := tgbotapi.NewMessage(message.Chat.ID,
-		tr.Lang("Or send me YouTube, TikTok url, examples below")+" 🫡\n\n"+
-			tr.Lang("Example")+" YouTube:\n https://www.youtube.com/watch?v=XqwbqxzsA2g\n"+
-			tr.Lang("Example")+" TikTok:\n https://vt.tiktok.com/ZS8jY2NVd\n"+
-			tr.Lang("Example")+" VK Video:\n https://vk.com/video-118281792_456242739\n"+
-			tr.Lang("Example")+" Spotify track:\n https://open.spotify.com/track/1hEh8Hc9lBAFWUghHBsCel\n"+
-			tr.Lang("Example")+" Spotify album:\n https://open.spotify.com/album/1YxUJdI0JWsXGGq8xa1SLt\n")
+	preMess := tr.Lang("Or send me YouTube, TikTok url, examples below") + " 🫡\n\n" +
+		tr.Lang("Example") + " YouTube:\n https://www.youtube.com/watch?v=XqwbqxzsA2g\n" +
+		tr.Lang("Example") + " TikTok:\n https://vt.tiktok.com/ZS8jY2NVd\n" +
+		tr.Lang("Example") + " VK Video:\n https://vk.com/video-118281792_456242739\n" +
+		tr.Lang("Example") + " Twitch Clip: https://www.twitch.tv/guhrl/clip/CrowdedCrowdedClintCharlietheUnicor" +
+		"n-igG_XEcFiBw2KoVX\n" +
+		tr.Lang("Example") + " RuTube Video:\n https://rutube.ru/video/37b5e31d214ee0496e380a028c279c36\n" +
+		tr.Lang("Example") + " Spotify track:\n https://open.spotify.com/track/1hEh8Hc9lBAFWUghHBsCel\n" +
+		tr.Lang("Example") + " Spotify album:\n https://open.spotify.com/album/1YxUJdI0JWsXGGq8xa1SLt\n"
+
+	db := Sqlite()
+	var userFromDB User
+	_ = db.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = ?",
+		message.From.ID)
+	db.Close()
+	if userFromDB.Premium == 1 {
+		preMess += "\n\nPremium flags 🤫\n\n" +
+			"skip cache id\n   +skip-cache-id\n" +
+			"get max quality\n   +quality\n" +
+			"slice video, format hh:mm:ss\n   -ss 00:01:00 -to 00:10:00\n\n" +
+			"Example: https://video.url +quality +..."
+	}
+
+	mess := tgbotapi.NewMessage(message.Chat.ID, preMess)
 	mess.DisableWebPagePreview = true
 	a.Bot.Send(mess)
 }

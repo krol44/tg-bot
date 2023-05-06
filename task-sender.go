@@ -4,6 +4,7 @@ import (
 	"fmt"
 	tgbotapi "github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -14,6 +15,16 @@ const signAdvt = "\n\n@TorPurrBot - Download Torrent, YouTube, Spotify, TikTok, 
 func (t *Task) SendVideo() bool {
 	file := t.FileConverted
 	if file.FilePath == "" {
+		return false
+	}
+
+	fileInfo, err := os.Stat(file.FilePath)
+	if err != nil {
+		log.Error(err)
+	}
+	if fileInfo.Size() > 1999e6 {
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("File is bigger 2 GB")))
+		t.App.SendLogToChannel(t.Message.From, "mess", "File is bigger 2 GB")
 		return false
 	}
 
@@ -78,6 +89,16 @@ func (t *Task) SendVideo() bool {
 
 func (t *Task) SendDoc() bool {
 	if t.File == "" {
+		return false
+	}
+
+	fileInfo, err := os.Stat(t.File)
+	if err != nil {
+		log.Error(err)
+	}
+	if fileInfo.Size() > 1999e6 {
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "❗️ "+t.Lang("File is bigger 2 GB")))
+		t.App.SendLogToChannel(t.Message.From, "mess", "File is bigger 2 GB")
 		return false
 	}
 

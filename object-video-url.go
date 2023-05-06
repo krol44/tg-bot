@@ -21,6 +21,9 @@ func (o *ObjectVideoUrl) Download() bool {
 		"youtu.be",
 		"tiktok.com",
 		"vk.com/video",
+		"twitch.tv/videos",
+		"twitch.tv/*****/clip",
+		"rutube.ru/video",
 	}
 
 	var urlsForSend []string
@@ -32,6 +35,9 @@ func (o *ObjectVideoUrl) Download() bool {
 
 	var allowUrl bool
 	for _, val := range allowUrls {
+		if strings.Contains(urlVideo, "twitch.tv") && strings.Contains(urlVideo, "/clip") {
+			allowUrl = true
+		}
 		if strings.Contains(urlVideo, val) {
 			allowUrl = true
 		}
@@ -86,17 +92,26 @@ func (o *ObjectVideoUrl) Download() bool {
 		return false
 	}
 
-	if infoVideo.FilesizeApprox == 0 {
-		infoVideo.FilesizeApprox = infoVideo.Filesize
-	}
-	if infoVideo.FilesizeApprox == 0 {
+	if infoVideo.ID == "" {
 		o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID, "❗️ "+o.Task.Lang("Video url is bad")+" 3"))
+		log.Error("not found id - " + urlVideo)
 		return false
 	}
 
 	protectedFlag = false
 
-	o.Task.UrlIDForCache = infoVideo.ID
+	if _, isSlice := o.Task.GetTimeSlice(); isSlice {
+		o.Task.Message.Text += " +skip-cache-id +quality"
+	}
+
+	u, err := url.Parse(urlVideo)
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+
+	o.Task.UrlIDForCache = strings.Split(strings.Replace(u.Host, "www.", "", 1), ".")[0] +
+		"-" + infoVideo.ID
 	cache := Cache{Task: o.Task}
 	if !strings.Contains(o.Task.Message.Text, "+skip-cache-id") {
 		if cache.TrySendThroughID() {
@@ -112,6 +127,8 @@ func (o *ObjectVideoUrl) Download() bool {
 	if strings.Contains(o.Task.Message.Text, "+quality") {
 		quality = "bv*+ba/b"
 	}
+
+	log.Debug(o.Task.Message.Text)
 
 	args := []string{
 		"--bidi-workaround",
@@ -240,19 +257,10 @@ func (o *ObjectVideoUrl) Download() bool {
 
 	stopProtected = true
 
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		log.Error(err)
-	}
-
-	if fileInfo.Size() > 1999e6 {
-		o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
-			"❗️ "+o.Task.Lang("File is bigger 2 GB")))
-		return false
-	}
-
-	if cache.TrySendThroughMd5(filePath) {
-		return false
+	if !strings.Contains(o.Task.Message.Text, "+skip-cache-id") {
+		if cache.TrySendThroughMd5(filePath) {
+			return false
+		}
 	}
 
 	o.Task.File = filePath

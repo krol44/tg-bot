@@ -61,13 +61,14 @@ func (c Convert) Run() FileConverted {
 		forceLowBConvert = true
 	}
 
+	_, isSlice := c.Task.GetTimeSlice()
 	// check for mp4
-	if path.Ext(fileConvertPath) == ".mp4" && forceLowBConvert == false {
+	if path.Ext(fileConvertPath) == ".mp4" && forceLowBConvert == false && isSlice == false {
 		c.Task.App.SendLogToChannel(c.Task.Message.From, "mess", "ext .mp4 - skip convert")
 		fileConvertPathOut = fileConvertPath
 	} else {
 		if forceLowBConvert {
-			bitrate = 1000
+			bitrate = 1500
 		}
 
 		err := c.execConvert(bitrate, timeTotal, fileName, fileConvertPath, fileConvertPathOut)
@@ -92,7 +93,7 @@ func (c Convert) Run() FileConverted {
 	}
 
 	// create cover
-	err = c.CreateCover(fileConvertPathOut, fileCoverPath, timeTotal)
+	err = c.CreateCover(fileConvertPathOut, fileCoverPath, timeTotalAfter)
 	if err != nil {
 		log.Error(err)
 	}
@@ -132,6 +133,8 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 		cv = "h264"
 	}
 
+	slice, isSlice := c.Task.GetTimeSlice()
+
 	prepareArgs := []string{
 		"-protocol_whitelist", "file",
 		"-v", "quiet",
@@ -139,7 +142,7 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 		"-i", fileConvertPath,
 		"-acodec", "aac",
 		"-c:v", cv,
-		"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-1'",
+		"-filter_complex", "scale=w='min(1920\\, iw*3/2):h=-2'",
 		"-preset", "medium",
 		"-fs", "1990M",
 		"-pix_fmt", "yuv420p",
@@ -151,12 +154,9 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 
 	var args []string
 	for _, pa := range prepareArgs {
-		//if config.IsDev && strings.Contains(pa, "00:05:00") {
-		//	if config.IsDev {
-		//		args = append(args, "00:01:00")
-		//	}
-		//	continue
-		//}
+		if pa == "-preset" && isSlice {
+			args = append(args, []string{"-ss", slice[0], "-to", slice[1]}...)
+		}
 		args = append(args, pa)
 	}
 

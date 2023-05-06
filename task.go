@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -259,6 +260,26 @@ func (t *Task) StatDlTor(fileChosen *torrent.File) (string, float64) {
 		t.Torrent.Process.Stats().TotalPeers)
 
 	return stat, percentage
+}
+
+func (t *Task) GetTimeSlice() ([]string, bool) {
+	regx := regexp.MustCompile(`-ss (.*?) -to (.{8})`)
+	matches := regx.FindStringSubmatch(t.Message.Text)
+
+	if len(matches) == 3 {
+		_, err := time.Parse(time.TimeOnly, matches[1])
+		if err != nil {
+			return nil, false
+		}
+		_, err = time.Parse(time.TimeOnly, matches[2])
+		if err != nil {
+			return nil, false
+		}
+
+		return []string{matches[1], matches[2]}, true
+	}
+
+	return nil, false
 }
 
 func (t *Task) PremiumAd(typeDl string) {

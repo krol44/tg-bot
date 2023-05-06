@@ -139,6 +139,7 @@ func (o *ObjectTorrent) Convert() bool {
 func (o *ObjectTorrent) Send() bool {
 	if path.Ext(o.Task.File) == ".flac" ||
 		path.Ext(o.Task.File) == ".mp3" ||
+		path.Ext(o.Task.File) == ".ogg" ||
 		path.Ext(o.Task.File) == ".wav" {
 		o.Task.Files = []string{o.Task.File}
 		return o.Task.SendAudio()
