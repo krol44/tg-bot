@@ -7,10 +7,10 @@ import (
 	"github.com/anacrolix/torrent"
 	"github.com/jmoiron/sqlx"
 	"github.com/krol44/telegram-bot-api"
+	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
-	_ "modernc.org/sqlite"
 	"os"
 	"strings"
 	"sync"
@@ -29,16 +29,6 @@ type App struct {
 
 type QueueMessages struct {
 	Message *tgbotapi.Message
-}
-
-type User struct {
-	TelegramId   int64  `db:"telegram_id"`
-	Name         string `db:"name"`
-	Premium      int    `db:"premium"`
-	SentAd       int    `db:"sent_ad"`
-	Block        int    `db:"block"`
-	BlockWhy     string `db:"block_why"`
-	LanguageCode string `db:"language_code"`
 }
 
 func Run() App {
@@ -113,9 +103,8 @@ func (a *App) ObserverQueue() {
 				var data struct {
 					Url string `db:"url"`
 				}
-				db := Sqlite()
-				err := db.Get(&data, `SELECT url FROM links WHERE md5_url = ?`, sp[1])
-				db.Close()
+
+				err := Postgres.Get(&data, `SELECT url FROM links WHERE md5_url = $1`, sp[1])
 				if err != nil && err != sql.ErrNoRows {
 					log.Error(err)
 					continue
@@ -178,11 +167,9 @@ func (a *App) ObserverQueue() {
 				return
 			}
 
-			db := Sqlite()
 			var userFromDB User
-			_ = db.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = ?",
+			_ = Postgres.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = $1",
 				valIn.Message.From.ID)
-			db.Close()
 
 			task := Task{Message: valIn.Message, App: a, UserFromDB: userFromDB, Translate: translate}
 			task.Translate.Code = userFromDB.LanguageCode
@@ -259,11 +246,8 @@ func (a *App) TaskAllowed(chatId int64, tr *Translate) bool {
 func (a *App) SendAd(mess *tgbotapi.Message) {
 	time.Sleep(time.Minute * 30)
 
-	db := Sqlite()
-	defer db.Close()
 	var userFromDB User
-	_ = db.Get(&userFromDB, "SELECT sent_ad FROM users WHERE telegram_id = ?",
-		mess.From.ID)
+	_ = Postgres.Get(&userFromDB, "SELECT sent_ad FROM users WHERE telegram_id = $1", mess.From.ID)
 	if userFromDB.SentAd == 1 {
 		return
 	}
@@ -283,7 +267,7 @@ func (a *App) SendAd(mess *tgbotapi.Message) {
 		log.Warn(err)
 	}
 
-	_, err = db.Exec("UPDATE users SET sent_ad = 1 WHERE telegram_id = ?", mess.From.ID)
+	_, err = Postgres.Exec("UPDATE users SET sent_ad = 1 WHERE telegram_id = $1", mess.From.ID)
 	if err != nil {
 		log.Error(err)
 	}
@@ -317,17 +301,14 @@ func (a *App) SendLogToChannel(messFrom *tgbotapi.User, typeSomething string, so
 }
 
 func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
-	db := Sqlite()
-	defer db.Close()
-
 	user := struct {
 		TelegramId int64 `db:"telegram_id"`
 	}{}
-	_ = db.Get(&user, "SELECT telegram_id FROM users WHERE telegram_id = ?", message.From.ID)
+	_ = Postgres.Get(&user, "SELECT telegram_id FROM users WHERE telegram_id = $1", message.From.ID)
 
 	if user.TelegramId == 0 {
-		_, err := db.Exec(`INSERT INTO users (telegram_id, name, date_create, language_code)
-							VALUES (?, ?, datetime('now'), ?)`, message.From.ID, message.From.UserName,
+		_, err := Postgres.Exec(`INSERT INTO users (telegram_id, name, date_create, language_code)
+							VALUES ($1, $2, $3, $4)`, message.From.ID, message.From.UserName, time.Now(),
 			message.From.LanguageCode)
 		if err != nil {
 			log.Error(err)
@@ -348,7 +329,7 @@ func (a *App) WelcomeMessage(message *tgbotapi.Message, tr *Translate) {
 
 	preMess := tr.Lang("Or send me YouTube, TikTok url, examples below") + " 🫡\n\n" +
 		tr.Lang("Example") + " YouTube:\n https://www.youtube.com/watch?v=XqwbqxzsA2g\n" +
-		tr.Lang("Example") + " TikTok:\n https://vt.tiktok.com/ZS8jY2NVd\n" +
+		tr.Lang("Example") + " TikTok:\n https://vt.tiktok.com/ZS8EYpxHP\n" +
 		tr.Lang("Example") + " VK Video:\n https://vk.com/video-118281792_456242739\n" +
 		tr.Lang("Example") + " Twitch Clip: https://www.twitch.tv/guhrl/clip/CrowdedCrowdedClintCharlietheUnicor" +
 		"n-igG_XEcFiBw2KoVX\n" +
@@ -356,11 +337,9 @@ func (a *App) WelcomeMessage(message *tgbotapi.Message, tr *Translate) {
 		tr.Lang("Example") + " Spotify track:\n https://open.spotify.com/track/1hEh8Hc9lBAFWUghHBsCel\n" +
 		tr.Lang("Example") + " Spotify album:\n https://open.spotify.com/album/1YxUJdI0JWsXGGq8xa1SLt\n"
 
-	db := Sqlite()
 	var userFromDB User
-	_ = db.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = ?",
+	_ = Postgres.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = $1",
 		message.From.ID)
-	db.Close()
 	if userFromDB.Premium == 1 {
 		preMess += "\n\nPremium flags 🤫\n\n" +
 			"skip cache id\n   +skip-cache-id\n" +
@@ -375,27 +354,19 @@ func (a *App) WelcomeMessage(message *tgbotapi.Message, tr *Translate) {
 }
 
 func (a *App) Logs(message any) {
-	db := Sqlite()
-	defer db.Close()
-
 	marshal, err := json.Marshal(message)
 	if err != nil {
 		return
 	}
-	_, err = db.Exec(`INSERT INTO logs (json, date_create)
-							VALUES (?, datetime('now'))`, string(marshal))
+	_, err = Postgres.Exec(`INSERT INTO logs (json, date_create) VALUES ($1, $2)`, string(marshal), time.Now())
 	if err != nil {
 		log.Error(err)
 	}
 }
 
 func (a *App) IsBlockUser(fromId int64) bool {
-	db := Sqlite()
-	defer db.Close()
-
 	var userFromDB User
-	_ = db.Get(&userFromDB, "SELECT block FROM users WHERE telegram_id = ?",
-		fromId)
+	_ = Postgres.Get(&userFromDB, "SELECT block FROM users WHERE telegram_id = $1", fromId)
 
 	if userFromDB.Block == 1 {
 		return true
@@ -416,56 +387,57 @@ func (a *App) initFolders() {
 	}
 }
 
-func Sqlite() *sqlx.DB {
-	conn, err := sqlx.Connect("sqlite", config.DirDB+"/store.db")
+func PostgresConnect() *sqlx.DB {
+	connect, err := sqlx.Connect("postgres", os.Getenv("POSTGRES_CONNECT"))
 	if err != nil {
-		log.Error(err)
+		log.Fatal(err)
 	}
-	return conn
+
+	connect.SetConnMaxLifetime(time.Minute * 3)
+	connect.SetMaxOpenConns(50)
+	connect.SetMaxIdleConns(50)
+
+	return connect
 }
 
 func (a *App) initTables() {
-	db := Sqlite()
-	defer db.Close()
-
-	if _, err := db.Exec(`
+	if _, err := Postgres.Exec(`
 create table if not exists users
 (
-  telegram_id   BIGINT,
-  name          TEXT,
-  date_create   TEXT,
-  premium       INT     default 0,
-  sent_ad       INT     default 0,
-  block         INT     default 0,
-  block_why     TEXT    default '',
-  language_code VARCHAR(10) default 'en'
+    telegram_id      bigint  		not null,
+    date_create      timestamp  	not null,
+    name			 text    		default '' not null,
+    premium		     int     		default 0 not null,
+  	sent_ad       	 int     		default 0 not null,
+  	block            int     		default 0 not null,
+	block_why 	     text 	    	default '' not null,
+	language_code    varchar(10)	default 'en'
 );
-
 create unique index if not exists users_telegram_id_uindex
     on users (telegram_id);
 
 create table if not exists logs
 (
-    id integer
-        constraint logs_pk
-            primary key autoincrement,
-    json             text,
-    date_create 	 text
+	id      serial
+        	constraint logs_pk
+            primary key,
+    json             text 		default '' not null,
+    date_create 	 timestamp 	not null
 );
 
 create table if not exists cache
 (
-    id integer
-        constraint cache_pk
-            primary key autoincrement,
-    caption				text,
-    native_path_file	text,
-    native_md5_sum		text,
-    video_url_id		text,
-    tg_from_id			text,
-    tg_file_id			text,
-    tg_file_size		int,
-    date_create			text
+	id      serial
+        	constraint cache_pk
+            primary key,
+    caption				text 		default '' not null,
+    native_path_file	text 		default '' not null,
+    native_md5_sum		text 		default '' not null,
+    video_url_id		text 		default '' not null,
+    tg_from_id			text 		default '' not null,
+    tg_file_id			text 		default '' not null,
+    tg_file_size		int			default 0  not null,
+    date_create			timestamp	not null
 );
 create index if not exists cache_native_path_file_index
     on cache (native_path_file);
@@ -476,17 +448,17 @@ create index if not exists cache_video_url_id_index
 
 create table if not exists links
 (
-    id integer
-        constraint links_pk
-            primary key autoincrement,
-    md5_url				text,
-    url					text,
-    telegram_id			BIGINT,
-    date_create			text
+	id      serial
+        	constraint links_pk
+            primary key,
+    md5_url				text 	default '' not null,
+    url					text 	default '' not null,
+    telegram_id			bigint	not null,
+    date_create			text 	default '' not null
 );
 create index if not exists links_md5_url
     on links (md5_url);
-				`); err != nil {
+`); err != nil {
 		log.Error(err)
 	}
 }

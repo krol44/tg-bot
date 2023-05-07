@@ -15,7 +15,6 @@ type Struct struct {
 	ChatIdChannelLog int64
 
 	DirBot        string
-	DirDB         string
 	DownloadLimit int
 
 	WelcomeFileId string
@@ -42,7 +41,6 @@ func init() {
 		os.Getenv("DEV") == "true",
 		chatIdChannelLog,
 		os.Getenv("DIR_BOT"),
-		os.Getenv("DIR_DB"),
 		dl,
 		os.Getenv("WELCOME_VIDEO_ID"),
 		os.Getenv("BOT_DEBUG") == "true",

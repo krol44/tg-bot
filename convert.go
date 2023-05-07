@@ -32,6 +32,7 @@ type FileConverted struct {
 
 func (c Convert) Run() FileConverted {
 	fileConvertPath := c.Task.File
+	c.Task.File = ""
 
 	infoVideo := c.GetInfoVideo(fileConvertPath)
 	bitrate, _ := strconv.Atoi(infoVideo.Format.BitRate)

@@ -1,6 +1,9 @@
 package main
 
-import "github.com/anacrolix/torrent"
+import (
+	"github.com/anacrolix/torrent"
+	"time"
+)
 
 type ObjectHandler interface {
 	Download() bool
@@ -20,6 +23,29 @@ type ObjectTorrent struct {
 
 type ObjectSpotify struct {
 	Task *Task
+}
+
+type User struct {
+	TelegramID   int64     `db:"telegram_id"`
+	DateCreate   time.Time `db:"date_create"`
+	Name         string    `db:"name"`
+	Premium      int       `db:"premium"`
+	SentAd       int       `db:"sent_ad"`
+	Block        int       `db:"block"`
+	BlockWhy     string    `db:"block_why"`
+	LanguageCode string    `db:"language_code"`
+}
+
+type CacheRow struct {
+	id             int       `db:"id"`
+	Caption        string    `db:"caption"`
+	NativePathFile string    `db:"native_path_file"`
+	NativeMd5Sum   string    `db:"native_md5_sum"`
+	VideoUrlId     string    `db:"video_url_id"`
+	TgFromID       string    `db:"tg_from_id"`
+	TgFileID       string    `db:"tg_file_id"`
+	TgFileSize     int       `db:"tg_file_size"`
+	DateCreate     time.Time `db:"date_create"`
 }
 
 type InfoYtDlp struct {

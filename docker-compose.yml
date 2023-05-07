@@ -17,6 +17,21 @@ services:
       options:
         max-size: "5m"
     restart: always
+  postgres:
+    image: postgres:15.2-alpine
+    ports:
+      - "5454:5432"
+    volumes:
+      - type: bind
+        source: ${STORAGE_PATH}/postgres-data
+        target: /var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    restart: unless-stopped
   telegram-api:
     image: aiogram/telegram-bot-api
     depends_on:
@@ -43,10 +58,12 @@ services:
     depends_on:
       - tor-purr-bot-vpn
       - telegram-api
+      - postgres
     network_mode: "service:tor-purr-bot-vpn"
     runtime: nvidia
     environment:
       TZ: "Europe/Moscow"
+      POSTGRES_CONNECT: host=postgres user=postgres password=${POSTGRES_PASSWORD} sslmode=disable
       NVIDIA_VISIBLE_DEVICES: "all"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility,video"
       DEV: ${DEV}
@@ -54,7 +71,6 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       CHAT_ID_CHANNEL_LOG: ${CHAT_ID_CHANNEL_LOG}
       DIR_BOT: "/bot-data"
-      DIR_DB: "/bot-db"
       DOWNLOAD_LIMIT: ${DOWNLOAD_LIMIT}
       TG_API_ENDPOINT: tor-purr-bot-vpn:8081
       TG_PATH_LOCAL: "/telegram-bot-api-data"
@@ -66,9 +82,6 @@ services:
       - type: bind
         source: ${STORAGE_PATH}/telegram-bot-api-data
         target: /telegram-bot-api-data
-      - type: bind
-        source: ${STORAGE_PATH}/bot-db
-        target: /bot-db
     logging:
       driver: "json-file"
       options:

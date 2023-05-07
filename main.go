@@ -3,22 +3,28 @@ package main
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
+
+var Postgres *sqlx.DB
 
 func main() {
 	log.Info("TorPurrBot is running...")
+
+	Postgres = PostgresConnect()
 
 	app := Run()
 	go app.ObserverQueue()
 
 	for update := range app.BotUpdates {
 		if update.Message != nil {
-			// logs sqlite
+			// logs
 			app.Logs(update.Message)
 
 			isBlock := app.IsBlockUser(update.Message.From.ID)
@@ -49,11 +55,10 @@ func main() {
 			article := tgbotapi.NewInlineQueryResultArticle(update.InlineQuery.ID,
 				"🫡 Generated url", "Downloading and watching through "+app.Bot.Self.UserName+" 🫡 \n"+url)
 
-			db := Sqlite()
-			_, err := db.Exec(`INSERT INTO links (md5_url, url, telegram_id, date_create)
-									VALUES(?, ?, ?, datetime('now'))`,
-				md5Url, update.InlineQuery.Query, update.InlineQuery.From.ID)
-			db.Close()
+			_, err := Postgres.Exec(`INSERT INTO links (md5_url, url, telegram_id, date_create)
+									VALUES($1, $2, $3, $4)`,
+				md5Url, update.InlineQuery.Query, update.InlineQuery.From.ID, time.Now())
+
 			if err != nil {
 				log.Error(err)
 				continue
@@ -77,11 +82,9 @@ func main() {
 			sp := strings.Split(update.ChannelPost.Text, " ")
 
 			if len(sp) == 2 && sp[0] == "/premium" {
-				db := Sqlite()
-
 				var userFromDB User
-				_ = db.Get(&userFromDB, "SELECT name, premium, language_code FROM users WHERE telegram_id = ?",
-					sp[1])
+				_ = Postgres.Get(&userFromDB, `SELECT name, premium, language_code
+														FROM users WHERE telegram_id = $1`, sp[1])
 
 				tr := Translate{Code: userFromDB.LanguageCode}
 				premium := 0
@@ -90,12 +93,11 @@ func main() {
 					premium = 1
 					premiumText = tr.Lang("Premium is enabled") + " 🎉"
 				}
-				_, err := db.Exec("UPDATE users SET premium = ? WHERE telegram_id = ?", premium, sp[1])
+
+				_, err := Postgres.Exec("UPDATE users SET premium = $1 WHERE telegram_id = $2", premium, sp[1])
 				if err != nil {
 					log.Error(err)
 				}
-
-				db.Close()
 
 				if whoId, err := strconv.Atoi(sp[1]); err == nil {
 					app.SendLogToChannel(&tgbotapi.User{ID: int64(whoId)}, "mess", premiumText)
@@ -104,17 +106,15 @@ func main() {
 			}
 
 			if len(sp) == 2 && sp[0] == "/block" {
-				db := Sqlite()
-
 				var userFromDB User
-				_ = db.Get(&userFromDB, "SELECT name, block FROM users WHERE telegram_id = ?",
-					sp[1])
+				_ = Postgres.Get(&userFromDB, "SELECT name, block FROM users WHERE telegram_id = $1", sp[1])
 
 				block := 0
 				if userFromDB.Block == 0 {
 					block = 1
 				}
-				_, err := db.Exec("UPDATE users SET block = ? WHERE telegram_id = ?", block, sp[1])
+
+				_, err := Postgres.Exec("UPDATE users SET block = $1 WHERE telegram_id = $2", block, sp[1])
 				if err != nil {
 					log.Error(err)
 				}
@@ -122,8 +122,6 @@ func main() {
 					app.SendLogToChannel(&tgbotapi.User{ID: int64(whoId)}, "mess",
 						fmt.Sprintf("block=%d", block))
 				}
-
-				db.Close()
 			}
 
 			if update.ChannelPost.ReplyToMessage != nil {
@@ -143,14 +141,11 @@ func main() {
 
 		if update.MyChatMember != nil {
 			if update.MyChatMember.NewChatMember.Status == "kicked" {
-				db := Sqlite()
-				_, err := db.Exec("UPDATE users SET block = ?, block_why = ? WHERE telegram_id = ?", 1,
-					"user kicked bot",
-					update.MyChatMember.From.ID)
+				_, err := Postgres.Exec("UPDATE users SET block = $1, block_why = $2 WHERE telegram_id = $3",
+					1, "user kicked bot", update.MyChatMember.From.ID)
 				if err != nil {
 					log.Error(err)
 				}
-				db.Close()
 
 				app.SendLogToChannel(&tgbotapi.User{ID: update.MyChatMember.From.ID,
 					UserName: update.MyChatMember.From.UserName},
