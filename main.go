@@ -140,5 +140,22 @@ func main() {
 				}
 			}
 		}
+
+		if update.MyChatMember != nil {
+			if update.MyChatMember.NewChatMember.Status == "kicked" {
+				db := Sqlite()
+				_, err := db.Exec("UPDATE users SET block = ?, block_why = ? WHERE telegram_id = ?", 1,
+					"user kicked bot",
+					update.MyChatMember.From.ID)
+				if err != nil {
+					log.Error(err)
+				}
+				db.Close()
+
+				app.SendLogToChannel(&tgbotapi.User{ID: update.MyChatMember.From.ID,
+					UserName: update.MyChatMember.From.UserName},
+					"mess", "🩸 user kicked bot")
+			}
+		}
 	}
 }

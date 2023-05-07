@@ -108,6 +108,10 @@ func (t *Translate) Lang(str string) string {
 		"Not allowed url, I support only": {
 			"ru": "Недопустимый url, поддерживаю только",
 		},
+		"I am so appreciative of you for using bot! %s Please, share below a message with your friends. Thank you!": {
+			"ru": "Я так благодарен тебе за использование бота!" +
+				" %s Пожалуйста, поделитесь приведенным ниже сообщением со своими друзьями. Спасибо!",
+		},
 	}
 
 	if re, ok := storage[str][t.Code]; ok {

@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 type App struct {
@@ -34,7 +35,9 @@ type User struct {
 	TelegramId   int64  `db:"telegram_id"`
 	Name         string `db:"name"`
 	Premium      int    `db:"premium"`
+	SentAd       int    `db:"sent_ad"`
 	Block        int    `db:"block"`
+	BlockWhy     string `db:"block_why"`
 	LanguageCode string `db:"language_code"`
 }
 
@@ -227,6 +230,9 @@ func (a *App) ObserverQueue() {
 			// global queue
 			a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
+			// send ad
+			go a.SendAd(valIn.Message)
+
 			// lock when files are deleting
 			cleanerWait.Done()
 			cleanerWait.Wait()
@@ -248,6 +254,41 @@ func (a *App) TaskAllowed(chatId int64, tr *Translate) bool {
 	}
 
 	return true
+}
+
+func (a *App) SendAd(mess *tgbotapi.Message) {
+	time.Sleep(time.Minute * 30)
+
+	db := Sqlite()
+	defer db.Close()
+	var userFromDB User
+	_ = db.Get(&userFromDB, "SELECT sent_ad FROM users WHERE telegram_id = ?",
+		mess.From.ID)
+	if userFromDB.SentAd == 1 {
+		return
+	}
+
+	tr := &Translate{Code: mess.From.LanguageCode}
+
+	_, err := a.Bot.Send(tgbotapi.NewMessage(mess.Chat.ID,
+		fmt.Sprintf(tr.Lang(
+			"I am so appreciative of you for using bot! %s Please,"+
+				" share below a message with your friends. Thank you!"), "❤️")))
+	if err != nil {
+		log.Warn(err)
+	}
+
+	_, err = a.Bot.Send(tgbotapi.NewMessage(mess.Chat.ID, signAdvt+"\n\nhttps://t.me/"+a.Bot.Self.UserName))
+	if err != nil {
+		log.Warn(err)
+	}
+
+	_, err = db.Exec("UPDATE users SET sent_ad = 1 WHERE telegram_id = ?", mess.From.ID)
+	if err != nil {
+		log.Error(err)
+	}
+
+	a.SendLogToChannel(mess.From, "mess", "send ad")
 }
 
 func (a *App) SendLogToChannel(messFrom *tgbotapi.User, typeSomething string, something ...string) {
@@ -394,7 +435,9 @@ create table if not exists users
   name          TEXT,
   date_create   TEXT,
   premium       INT     default 0,
+  sent_ad       INT     default 0,
   block         INT     default 0,
+  block_why     TEXT    default '',
   language_code VARCHAR(10) default 'en'
 );
 

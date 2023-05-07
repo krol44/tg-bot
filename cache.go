@@ -26,26 +26,32 @@ type CacheRow struct {
 	DateCreate     string `db:"date_create"`
 }
 
-func (c Cache) Add(tgFileId string, tgFileSize int, NativeFilePath string) {
+func (c Cache) Add(tgFileId string, tgFileSize int, nativeFilePath string) {
 	db := Sqlite()
 	defer db.Close()
 
 	var md5Sum string
-	if file, err := os.ReadFile(NativeFilePath); err == nil {
+	if file, err := os.ReadFile(nativeFilePath); err == nil {
 		md5Sum = fmt.Sprintf("%x", md5.Sum(file))
 	}
 
-	caption := strings.TrimSuffix(path.Base(NativeFilePath), path.Ext(path.Base(NativeFilePath)))
+	caption := strings.TrimSuffix(path.Base(nativeFilePath), path.Ext(path.Base(nativeFilePath)))
 
 	var urlHttp string
 	if c.Task.DescriptionUrl != "" {
 		urlHttp = "\n" + c.Task.DescriptionUrl
 	}
 
+	if _, isSlice := c.Task.GetTimeSlice(); isSlice {
+		nativeFilePath = ""
+		md5Sum = ""
+		c.Task.UrlIDForCache = "no"
+	}
+
 	_, err := db.Exec(`INSERT INTO cache
 		(caption, native_path_file, native_md5_sum, video_url_id, tg_from_id, tg_file_id, tg_file_size, date_create)
 		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-		caption+urlHttp, NativeFilePath, md5Sum, c.Task.UrlIDForCache, c.Task.Message.From.ID,
+		caption+urlHttp, nativeFilePath, md5Sum, c.Task.UrlIDForCache, c.Task.Message.From.ID,
 		tgFileId, tgFileSize)
 	if err != nil {
 		log.Error(err)
