@@ -56,9 +56,17 @@ func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
 	return mess
 }
 
-func (t *Task) Alloc(typeDl string) {
-	msg := tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 "+t.Lang("Download is starting soon")+
-		"...")
+func (t *Task) Alloc(typeDl string) bool {
+	if t.Limit(typeDl) {
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+typeDl+" - "+
+			t.Lang("limit exceeded, try again in 24 hours")))
+
+		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("limit exceeded - "+typeDl))
+
+		return false
+	}
+
+	msg := tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 "+t.Lang("Download is starting soon")+"...")
 
 	// creating edit message
 	messStat := t.Send(msg)
@@ -83,6 +91,34 @@ func (t *Task) Alloc(typeDl string) {
 
 	// log
 	t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("start download "+typeDl))
+
+	return true
+}
+
+func (t *Task) Limit(typeDl string) bool {
+	var ld struct {
+		Quantity int `db:"quantity"`
+	}
+	err := Postgres.Get(&ld, `SELECT count(id) AS quantity FROM limits
+	                             WHERE type_object = $1 AND telegram_id = $2 AND
+	                           date_create BETWEEN now() - INTERVAL '24 hour' AND now()`, typeDl, t.Message.From.ID)
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+
+	if ld.Quantity >= 5 {
+		return true
+	}
+
+	_, err = Postgres.Exec(`INSERT INTO limits (type_object, telegram_id, date_create)
+									VALUES ($1, $2, NOW())`, typeDl, t.Message.From.ID)
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+
+	return false
 }
 
 func (t *Task) OpenKeyBoardWithTorrentFiles() *torrent.Torrent {

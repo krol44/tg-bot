@@ -18,7 +18,10 @@ func (o *ObjectTorrent) Download() bool {
 		fmt.Sprintf("downloading torrent - %s | his turn: %d",
 			o.Task.Message.Text, qn.(int)+1))
 
-	o.Task.Alloc("torrent")
+	if !o.Task.Alloc("torrent") {
+		log.Debug("limit exceeded")
+		return false
+	}
 
 	o.Task.Torrent.Process = o.TorrentProcess
 

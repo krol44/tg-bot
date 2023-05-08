@@ -458,6 +458,18 @@ create table if not exists links
 );
 create index if not exists links_md5_url
     on links (md5_url);
+
+create table if not exists limits
+(
+	id      serial
+        	constraint limits_pk
+            primary key,
+    type_object			text 		default '' not null,
+    telegram_id			bigint		not null,
+    date_create			timestamp 	not null
+);
+create index if not exists limits_group
+    on limits (type_object, telegram_id, date_create);
 `); err != nil {
 		log.Error(err)
 	}

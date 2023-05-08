@@ -28,7 +28,10 @@ func (o *ObjectSpotify) Download() bool {
 		return false
 	}
 
-	o.Task.Alloc("spotify")
+	if !o.Task.Alloc("spotify") {
+		log.Debug("limit exceeded")
+		return false
+	}
 
 	folder := config.DirBot + "/storage" + "/" + o.Task.UniqueId("files-audio")
 

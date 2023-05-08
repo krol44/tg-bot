@@ -63,7 +63,10 @@ func (o *ObjectVideoUrl) Download() bool {
 		return false
 	}
 
-	o.Task.Alloc("video-url")
+	if !o.Task.Alloc("video-url") {
+		log.Debug("limit exceeded")
+		return false
+	}
 
 	cmd := exec.Command("yt-dlp", "-j", "--socket-timeout", "10", urlVideo)
 	// protected
