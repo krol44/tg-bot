@@ -3,4 +3,3 @@
 /data
 .env.secrets
 wireguard/wg0.conf
-instagram-cookies.txt

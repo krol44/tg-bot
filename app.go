@@ -124,7 +124,13 @@ func (a *App) ObserverQueue() {
 			continue
 		}
 		if val.Message.Text == "/stop" {
-			a.ChatsWork.StopTasks.Store(val.Message.Chat.ID, true)
+			a.ChatsWork.chat.Range(func(key, _ any) bool {
+				if key == val.Message.Chat.ID {
+					a.ChatsWork.StopTasks.Store(val.Message.Chat.ID, true)
+				}
+
+				return true
+			})
 			continue
 		}
 

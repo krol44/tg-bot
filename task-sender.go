@@ -113,6 +113,10 @@ func (t *Task) SendDoc() bool {
 	stopAction := false
 	go func(stopAction *bool) {
 		for {
+			if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+				return
+			}
+
 			if *stopAction == true {
 				return
 			}
@@ -180,6 +184,10 @@ func (t *Task) SendAudio() bool {
 	stopAction := false
 	go func(stopAction *bool) {
 		for {
+			if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+				return
+			}
+
 			if *stopAction == true {
 				return
 			}

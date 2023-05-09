@@ -102,8 +102,8 @@ func (t *Translate) Lang(str string) string {
 		"Getting data from torrent, please wait": {
 			"ru": "Получение данных из торрента, ожидайте",
 		},
-		"No data in the torrent file or magnet link": {
-			"ru": "Нет данных в торрент файле или magnet link",
+		"No data in the torrent file or magnet link, no seeds to get info": {
+			"ru": "Нет данных в торрент файле или magnet link, нет сидиров, чтобы получить информацию",
 		},
 		"Not allowed url, I support only": {
 			"ru": "Недопустимый url, поддерживаю только",
@@ -114,6 +114,9 @@ func (t *Translate) Lang(str string) string {
 		},
 		"limit exceeded, try again in 24 hours": {
 			"ru": "лимит превышен, повторите попытку через 24 часа",
+		},
+		"Didn't have time to download, maximum 30 minutes": {
+			"ru": "Не успел скачать, максимум 30 минут",
 		},
 	}
 

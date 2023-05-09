@@ -13,11 +13,6 @@ import (
 )
 
 func (o *ObjectTorrent) Download() bool {
-	qn, _ := o.Task.App.ChatsWork.m.Load(o.Task.Message.MessageID)
-	o.Task.App.SendLogToChannel(o.Task.Message.From, "mess",
-		fmt.Sprintf("downloading torrent - %s | his turn: %d",
-			o.Task.Message.Text, qn.(int)+1))
-
 	if !o.Task.Alloc("torrent") {
 		log.Debug("limit exceeded")
 		return false
@@ -32,6 +27,7 @@ func (o *ObjectTorrent) Download() bool {
 			if val.Length() > 1999e6 { // more 2 GB
 				o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
 					fmt.Sprintf("😔 "+o.Task.Lang("File is bigger 2 GB"))))
+				o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "File is bigger 2 GB")
 				return false
 			}
 			val.SetPriority(torrent.PiecePriorityNow)
@@ -89,7 +85,13 @@ func (o *ObjectTorrent) Download() bool {
 
 	o.Task.Torrent.Process.AllowDataDownload()
 
+	timeStartToWork := time.Now().Unix()
+	maxTimeWork := int64(1800)
+
 	for {
+		if time.Now().Unix() > timeStartToWork+maxTimeWork {
+			break
+		}
 		if _, bo := o.Task.App.ChatsWork.StopTasks.Load(o.Task.Message.Chat.ID); bo {
 			break
 		}
@@ -100,6 +102,15 @@ func (o *ObjectTorrent) Download() bool {
 	}
 
 	cancelProgress()
+
+	if time.Now().Unix() > timeStartToWork+maxTimeWork {
+		o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
+			fmt.Sprintf("😔 "+o.Task.Lang("Didn't have time to download, maximum 30 minutes"))))
+		o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "didn't have time to download")
+
+		o.Task.Torrent.Process.Drop()
+		return false
+	}
 
 	if _, bo := o.Task.App.ChatsWork.StopTasks.Load(o.Task.Message.Chat.ID); bo {
 		o.Task.Torrent.Process.Drop()

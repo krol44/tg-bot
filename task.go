@@ -57,6 +57,11 @@ func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
 }
 
 func (t *Task) Alloc(typeDl string) bool {
+	qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
+	t.App.SendLogToChannel(t.Message.From, "mess",
+		fmt.Sprintf("downloading %s - %s | his turn: %d",
+			typeDl, t.Message.Text, qn.(int)+1))
+
 	if t.Limit(typeDl) {
 		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+typeDl+" - "+
 			t.Lang("limit exceeded, try again in 24 hours")))
@@ -73,6 +78,10 @@ func (t *Task) Alloc(typeDl string) bool {
 	t.MessageEditID = messStat.MessageID
 
 	for {
+		if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+			return true
+		}
+
 		// global queue
 		qn, _ := t.App.ChatsWork.m.Load(t.Message.MessageID)
 		if qn.(int) < config.MaxTasks {
@@ -85,12 +94,6 @@ func (t *Task) Alloc(typeDl string) bool {
 
 		time.Sleep(4 * time.Second)
 	}
-
-	// if you need, open
-	// t.PremiumAd(typeDl)
-
-	// log
-	t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("start download "+typeDl))
 
 	return true
 }
@@ -156,7 +159,7 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() *torrent.Torrent {
 		t.App.SendLogToChannel(t.Message.From, "mess", "torrent magnet")
 	}
 
-	ctxTimeLimit, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctxTimeLimit, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	m := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "🕚 "+t.Lang("Getting data from torrent, please wait")))
 	select {
 	case <-torrentProcess.GotInfo():
@@ -166,7 +169,8 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() *torrent.Torrent {
 	t.App.Bot.Send(tgbotapi.NewDeleteMessage(t.Message.Chat.ID, m.MessageID))
 
 	if torrentProcess.Info() == nil {
-		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+t.Lang("No data in the torrent file or magnet link")))
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID,
+			"😔 "+t.Lang("No data in the torrent file or magnet link, no seeds to get info")))
 		t.App.SendLogToChannel(t.Message.From, "mess",
 			"error torrent - no files or time limit get info")
 		return nil
