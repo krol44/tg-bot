@@ -175,8 +175,6 @@ func (o *ObjectVideoUrl) Download() bool {
 		args = append(args, v)
 	}
 
-	log.Info(args)
-
 	cmd = exec.Command("yt-dlp", args...)
 
 	stopProtected := false

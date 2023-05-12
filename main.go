@@ -2,10 +2,12 @@ package main
 
 import (
 	"crypto/md5"
+	"database/sql"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -49,32 +51,74 @@ func main() {
 				continue
 			}
 
+			var urlVideo string
+			sp := strings.Split(update.InlineQuery.Query, "&")
+			if len(sp) >= 1 {
+				urlVideo = sp[0]
+			}
+
+			var cache struct {
+				ID       int    `db:"id"`
+				TgFileId string `db:"tg_file_id"`
+				Caption  string `db:"caption"`
+				Path     string `db:"native_path_file"`
+			}
+
+			err := Postgres.Get(&cache, `SELECT tg_file_id, caption, native_path_file FROM cache WHERE caption LIKE $1`,
+				"%"+urlVideo+"%")
+			if err != nil && err != sql.ErrNoRows {
+				log.Error(err)
+				continue
+			}
+
 			md5Url := fmt.Sprintf("%x", md5.Sum([]byte(update.InlineQuery.Query)))
-
-			url := "https://t.me/" + app.Bot.Self.UserName + "?start=" + md5Url
-			article := tgbotapi.NewInlineQueryResultArticle(update.InlineQuery.ID,
-				"🫡 Generated url", "Downloading and watching through "+app.Bot.Self.UserName+" 🫡 \n"+url)
-
-			_, err := Postgres.Exec(`INSERT INTO links (md5_url, url, telegram_id, date_create)
+			_, err = Postgres.Exec(`INSERT INTO links (md5_url, url, telegram_id, date_create)
 									VALUES($1, $2, $3, $4)`,
 				md5Url, update.InlineQuery.Query, update.InlineQuery.From.ID, time.Now())
+
+			var inlineConf tgbotapi.InlineConfig
+			if cache.TgFileId == "" {
+				inlineConf = tgbotapi.InlineConfig{
+					InlineQueryID:     update.InlineQuery.ID,
+					IsPersonal:        true,
+					CacheTime:         1,
+					SwitchPMText:      "No found cache video, click to create",
+					SwitchPMParameter: md5Url,
+				}
+			} else {
+				var res []interface{}
+
+				if path.Ext(cache.Path) == ".mp4" {
+					b := tgbotapi.NewInlineQueryResultCachedVideo(fmt.Sprintf("%d", cache.ID),
+						cache.TgFileId, cache.Caption)
+					b.Caption = cache.Caption + signAdvt
+					res = append(res, b)
+				} else if path.Ext(cache.Path) == ".mp3" {
+					b := tgbotapi.NewInlineQueryResultCachedAudio(fmt.Sprintf("%d", cache.ID), cache.TgFileId)
+					b.Caption = cache.Caption + signAdvt
+					res = append(res, b)
+				} else {
+					b := tgbotapi.NewInlineQueryResultCachedDocument(fmt.Sprintf("%d", cache.ID),
+						cache.TgFileId, cache.Caption)
+					b.Caption = cache.Caption + signAdvt
+					res = append(res, b)
+				}
+
+				inlineConf = tgbotapi.InlineConfig{
+					InlineQueryID: update.InlineQuery.ID,
+					IsPersonal:    true,
+					CacheTime:     1,
+					Results:       res,
+				}
+			}
 
 			if err != nil {
 				log.Error(err)
 				continue
 			}
 
-			article.Description = url
-
-			inlineConf := tgbotapi.InlineConfig{
-				InlineQueryID: update.InlineQuery.ID,
-				IsPersonal:    false,
-				CacheTime:     1,
-				Results:       []interface{}{article},
-			}
-
 			if _, err := app.Bot.Request(inlineConf); err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 		}
 

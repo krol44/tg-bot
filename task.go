@@ -141,6 +141,10 @@ func (t *Task) AllocTorrent(typeDl string) bool {
 }
 
 func (t *Task) Limit(typeDl string) bool {
+	if t.UserFromDB.Premium == 1 {
+		return false
+	}
+
 	var ld struct {
 		Quantity int `db:"quantity"`
 	}
