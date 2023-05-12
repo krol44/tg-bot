@@ -23,8 +23,9 @@ type App struct {
 	TorClient  *torrent.Client
 	Queue      chan QueueMessages
 
-	ChatsWork     ChatsWork
-	LockForRemove sync.WaitGroup
+	ChatsWork        ChatsWork
+	TorrentChatsWork ChatsWork
+	LockForRemove    sync.WaitGroup
 }
 
 type QueueMessages struct {
@@ -39,6 +40,7 @@ func Run() App {
 
 	// create lock turn
 	app.ChatsWork = ChatsWork{m: sync.Map{}}
+	app.TorrentChatsWork = ChatsWork{m: sync.Map{}}
 
 	var err error
 	// init bot
@@ -131,6 +133,15 @@ func (a *App) ObserverQueue() {
 
 				return true
 			})
+
+			a.TorrentChatsWork.chat.Range(func(key, _ any) bool {
+				if key == val.Message.Chat.ID {
+					a.ChatsWork.StopTasks.Store(val.Message.Chat.ID, true)
+				}
+
+				return true
+			})
+
 			continue
 		}
 
@@ -187,10 +198,10 @@ func (a *App) ObserverQueue() {
 				}
 			}
 
-			// global queue
-			a.ChatsWork.IncPlus(valIn.Message.MessageID, valIn.Message.Chat.ID)
-
 			if torrentProcess != nil {
+				// torrent queue
+				a.TorrentChatsWork.IncPlus(valIn.Message.MessageID, valIn.Message.Chat.ID)
+
 				task.CloseKeyBoardWithTorrentFiles()
 				t := &ObjectTorrent{
 					Task:           &task,
@@ -199,9 +210,15 @@ func (a *App) ObserverQueue() {
 				task.Run(t)
 
 				task.RemoveMessageEdit()
+
+				// torrent queue
+				a.TorrentChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 			}
 
 			if strings.HasPrefix(valIn.Message.Text, "https://") {
+				// global queue
+				a.ChatsWork.IncPlus(valIn.Message.MessageID, valIn.Message.Chat.ID)
+
 				if strings.Contains(valIn.Message.Text, "https://open.spotify.com/track/") ||
 					strings.Contains(valIn.Message.Text, "https://open.spotify.com/album") {
 					ym := &ObjectSpotify{
@@ -214,14 +231,14 @@ func (a *App) ObserverQueue() {
 					}
 					task.Run(vuc)
 				}
+
+				// global queue
+				a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 			}
 
 			if _, bo := task.App.ChatsWork.StopTasks.LoadAndDelete(task.Message.Chat.ID); bo {
 				task.Send(tgbotapi.NewMessage(task.Message.Chat.ID, "❗️ "+task.Lang("Task stopped")))
 			}
-
-			// global queue
-			a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
 			// send ad
 			go a.SendAd(valIn.Message)
@@ -235,10 +252,15 @@ func (a *App) ObserverQueue() {
 }
 
 func (a *App) TaskAllowed(chatId int64, tr *Translate) bool {
-	//if config.IsDev {
-	//	return true
-	//}
 	if _, bo := a.ChatsWork.chat.Load(chatId); bo {
+		_, err := a.Bot.Send(tgbotapi.NewMessage(chatId, "❗️ "+tr.Lang("Allowed only one task")))
+		if err != nil {
+			log.Error(err)
+		}
+		return false
+	}
+
+	if _, bo := a.TorrentChatsWork.chat.Load(chatId); bo {
 		_, err := a.Bot.Send(tgbotapi.NewMessage(chatId, "❗️ "+tr.Lang("Allowed only one task")))
 		if err != nil {
 			log.Error(err)
@@ -320,7 +342,7 @@ func (a *App) InitUser(message *tgbotapi.Message, tr *Translate) {
 			log.Error(err)
 		}
 
-		a.SendLogToChannel(message.From, "mess", fmt.Sprintf("new user"))
+		a.SendLogToChannel(message.From, "mess", fmt.Sprintf("🍀 new user"))
 
 		a.WelcomeMessage(message, tr)
 	}
@@ -341,7 +363,8 @@ func (a *App) WelcomeMessage(message *tgbotapi.Message, tr *Translate) {
 		"n-igG_XEcFiBw2KoVX\n" +
 		tr.Lang("Example") + " RuTube Video:\n https://rutube.ru/video/37b5e31d214ee0496e380a028c279c36\n" +
 		tr.Lang("Example") + " Spotify track:\n https://open.spotify.com/track/1hEh8Hc9lBAFWUghHBsCel\n" +
-		tr.Lang("Example") + " Spotify album:\n https://open.spotify.com/album/1YxUJdI0JWsXGGq8xa1SLt\n"
+		tr.Lang("Example") + " Spotify album:\n https://open.spotify.com/album/1YxUJdI0JWsXGGq8xa1SLt\n" +
+		tr.Lang("Example") + " Coub:\n https://coub.com/view/3bfclw\n"
 
 	var userFromDB User
 	_ = Postgres.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = $1",

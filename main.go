@@ -30,9 +30,9 @@ func main() {
 			isBlock := app.IsBlockUser(update.Message.From.ID)
 
 			if update.Message.Text != "" {
-				suffix := "Sent message: "
+				suffix := "sent message: "
 				if isBlock {
-					suffix = "[blocked] Sent message: "
+					suffix = "[blocked] sent message: "
 				}
 				app.SendLogToChannel(update.Message.From, "mess", suffix+update.Message.Text)
 			}

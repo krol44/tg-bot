@@ -48,7 +48,8 @@ func (c Cache) Add(tgFileId string, tgFileSize int, nativeFilePath string) {
 func (c Cache) TrySend(typeSome string, pathway string) bool {
 	var row CacheRow
 	err := Postgres.Get(&row,
-		"SELECT caption, tg_file_id FROM cache WHERE native_path_file = $1 ORDER BY id DESC", pathway)
+		"SELECT caption, tg_file_id, native_path_file FROM cache WHERE native_path_file = $1 ORDER BY id DESC",
+		pathway)
 	if err != nil {
 		return false
 	}
@@ -56,6 +57,9 @@ func (c Cache) TrySend(typeSome string, pathway string) bool {
 	if typeSome == "video" {
 		sob := tgbotapi.NewVideo(c.Task.Message.Chat.ID, tgbotapi.FileID(row.TgFileID))
 		sob.Caption = row.Caption + signAdvt
+		if strings.Contains(row.NativePathFile, "torrent-client") {
+			sob.ProtectContent = true
+		}
 
 		_, err := c.Task.App.Bot.Send(sob)
 		if err != nil {
@@ -67,6 +71,10 @@ func (c Cache) TrySend(typeSome string, pathway string) bool {
 	if typeSome == "doc" {
 		sob := tgbotapi.NewDocument(c.Task.Message.Chat.ID, tgbotapi.FileID(row.TgFileID))
 		sob.Caption = row.Caption + signAdvt
+		if strings.Contains(row.NativePathFile, "torrent-client") {
+			sob.ProtectContent = true
+		}
+
 		_, err := c.Task.App.Bot.Send(sob)
 		if err != nil {
 			return false
@@ -111,13 +119,17 @@ func (c Cache) TrySendThroughMd5(NativeFilePath string) bool {
 
 	var row CacheRow
 	err := Postgres.Get(&row,
-		"SELECT caption, tg_file_id FROM cache WHERE native_md5_sum = $1 ORDER BY id DESC", md5Sum)
+		"SELECT caption, tg_file_id, native_path_file FROM cache WHERE native_md5_sum = $1 ORDER BY id DESC",
+		md5Sum)
 	if err != nil {
 		return false
 	}
 
 	sob := tgbotapi.NewVideo(c.Task.Message.Chat.ID, tgbotapi.FileID(row.TgFileID))
 	sob.Caption = row.Caption + signAdvt
+	if strings.Contains(row.NativePathFile, "torrent-client") {
+		sob.ProtectContent = true
+	}
 
 	_, err = c.Task.App.Bot.Send(sob)
 	if err != nil {

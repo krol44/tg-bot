@@ -12,7 +12,7 @@ import (
 
 const signAdvt = "\n\n@TorPurrBot - Download Torrent, YouTube, Spotify, TikTok, Other"
 
-func (t *Task) SendVideo() bool {
+func (t *Task) SendVideo(forwardLock bool) bool {
 	file := t.FileConverted
 	if file.FilePath == "" {
 		return false
@@ -47,6 +47,9 @@ func (t *Task) SendVideo() bool {
 	video.Thumb = tgbotapi.FilePath(file.CoverPath)
 	video.Width = file.CoverSize.X
 	video.Height = file.CoverSize.Y
+	if forwardLock {
+		video.ProtectContent = true
+	}
 
 	stopAction := false
 	go func(stopAction *bool) {
@@ -175,8 +178,6 @@ func (t *Task) SendAudio() bool {
 		return false
 	}
 
-	var logs []CacheLog
-
 	t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, "📲 "+t.Lang("Sending audio")+"\n\n⏰ "+
 		t.Lang("Time upload to the telegram ~ 1-7 minutes")))
 	t.App.SendLogToChannel(t.Message.From, "mess", "sending audio")
@@ -245,26 +246,17 @@ func (t *Task) SendAudio() bool {
 				fileSize := st.Audio.FileSize
 				if pathForSave != "" {
 					Cache.Add(Cache{Task: t}, fileIDStr, fileSize, pathForSave)
-					logs = append(logs, CacheLog{From: t.Message.From, FileID: fileIDStr, FromCache: false})
-				} else {
-					logs = append(logs, CacheLog{From: t.Message.From, FileID: fileIDStr, FromCache: true})
 				}
 			}
+		}
+
+		_, err = t.App.Bot.SendMediaGroup(tgbotapi.NewMediaGroup(config.ChatIdChannelLog, files))
+		if err != nil {
+			log.Error(err)
 		}
 	}
 
 	stopAction = true
-
-	go func() {
-		for _, s := range logs {
-			var ic string
-			if s.FromCache {
-				ic = " from cache"
-			}
-			t.App.SendLogToChannel(s.From, "doc", "audio file"+ic, s.FileID)
-			time.Sleep(time.Second * 2)
-		}
-	}()
 
 	return true
 }

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	tgbotapi "github.com/krol44/telegram-bot-api"
 	log "github.com/sirupsen/logrus"
+	"math"
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -24,6 +26,8 @@ func (o *ObjectVideoUrl) Download() bool {
 		"twitch.tv/videos",
 		"twitch.tv/*****/clip",
 		"rutube.ru/video",
+		"instagram.com/reel",
+		"coub.com/view",
 	}
 
 	var urlsForSend []string
@@ -43,8 +47,9 @@ func (o *ObjectVideoUrl) Download() bool {
 		}
 	}
 	if !allowUrl {
+		uFs := strings.Replace(strings.Join(urlsForSend, "\n"), "instagram.com/reel", "", 1)
 		m := tgbotapi.NewMessage(o.Task.Message.Chat.ID,
-			"❗️ "+o.Task.Lang("Not allowed url, I support only:")+"\n"+strings.Join(urlsForSend, "\n"))
+			"❗️ "+o.Task.Lang("Not allowed url, I support only:")+"\n"+uFs)
 		m.DisableWebPagePreview = true
 		o.Task.Send(m)
 		return false
@@ -68,7 +73,12 @@ func (o *ObjectVideoUrl) Download() bool {
 		return false
 	}
 
-	cmd := exec.Command("yt-dlp", "-j", "--socket-timeout", "10", urlVideo)
+	infoArgs := []string{"-j", "--socket-timeout", "10", urlVideo}
+	if strings.Contains(o.Task.Message.Text, "instagram.com/reel") {
+		infoArgs = append(infoArgs, []string{"--cookies", "instagram-cookies.txt"}...)
+	}
+
+	cmd := exec.Command("yt-dlp", infoArgs...)
 	// protected
 	protectedFlag := true
 	go func(cmd *exec.Cmd, protectedFlag *bool) {
@@ -131,9 +141,13 @@ func (o *ObjectVideoUrl) Download() bool {
 		quality = "bv*+ba/b"
 	}
 
-	log.Debug(o.Task.Message.Text)
+	if strings.Contains(o.Task.Message.Text, "coub.com/view") {
+		quality = "bestvideo,bestaudio"
+	}
 
-	args := []string{
+	log.Debug(o.Task.Message.Text, " / ", quality)
+
+	argsPre := []string{
 		"--bidi-workaround",
 		"--socket-timeout", "10",
 		"--newline",
@@ -148,6 +162,20 @@ func (o *ObjectVideoUrl) Download() bool {
 		"-o", fmt.Sprintf("%s/%%(title).100s - %%(upload_date)s.%%(ext)s", folder),
 		urlVideo,
 	}
+
+	if strings.Contains(o.Task.Message.Text, "instagram.com/reel") {
+		argsPre = append(argsPre, []string{"--cookies", "instagram-cookies.txt"}...)
+	}
+
+	var args []string
+	for _, v := range argsPre {
+		if strings.Contains(o.Task.Message.Text, "coub.com/view") && v == "-S" {
+			args = append(args, "-k")
+		}
+		args = append(args, v)
+	}
+
+	log.Info(args)
 
 	cmd = exec.Command("yt-dlp", args...)
 
@@ -235,8 +263,14 @@ func (o *ObjectVideoUrl) Download() bool {
 	}
 
 	if err := cmd.Wait(); err != nil {
-		log.Error(err)
+		log.Warn(err)
 		return false
+	}
+
+	if strings.Contains(o.Task.Message.Text, "coub.com/view") {
+		if !o.prepareCoub(folder) {
+			return false
+		}
 	}
 
 	dir, err := os.ReadDir(folder)
@@ -271,6 +305,70 @@ func (o *ObjectVideoUrl) Download() bool {
 	return true
 }
 
+func (o *ObjectVideoUrl) prepareCoub(folder string) bool {
+	if strings.Contains(o.Task.Message.Text, "coub.com/view") {
+		dir, err := os.ReadDir(folder)
+		if err != nil {
+			log.Error(err)
+			return false
+		}
+
+		var (
+			as       int
+			vs       int
+			pathMp3  string
+			pathMp4  string
+			pathName string
+		)
+		c := Convert{}
+		for _, file := range dir {
+			if path.Ext(file.Name()) == ".mp3" {
+				pathMp3 = folder + "/" + file.Name()
+				asp := c.TimeTotalRaw(pathMp3)
+				as = int(asp.Sub(time.Date(0000, 01, 01, 00, 00, 00, 0,
+					time.UTC)).Seconds())
+			}
+
+			if path.Ext(file.Name()) == ".mp4" {
+				pathMp4 = folder + "/" + file.Name()
+				vs = c.TimeTotalRaw(pathMp4).Second()
+				pathName = strings.Replace(path.Base(pathMp4), path.Ext(pathMp4), "", 1)
+			}
+		}
+
+		if pathName == "" {
+			return false
+		}
+
+		loop := fmt.Sprintf("%v", math.Floor(float64(as)/float64(vs)))
+
+		ffmpegPath := "./ffmpeg"
+		if config.IsDev {
+			ffmpegPath = "ffmpeg"
+		}
+		_, err = exec.Command(ffmpegPath,
+			"-v", "quiet", "-stream_loop", loop, "-t", fmt.Sprintf("%d", as), "-i", pathMp4, "-i", pathMp3,
+			"-c", "copy", folder+"/"+pathName+"-coub.mp4").Output()
+		if err != nil {
+			log.Warn(err)
+			return false
+		}
+
+		err = os.Remove(pathMp3)
+		if err != nil {
+			log.Error(err)
+			return false
+		}
+		err = os.Remove(pathMp4)
+		if err != nil {
+			log.Error(err)
+			return false
+		}
+	}
+
+	return true
+}
+
 func (o *ObjectVideoUrl) Convert() bool {
 	var c = Convert{Task: o.Task, IsTorrent: false}
 
@@ -284,7 +382,7 @@ func (o *ObjectVideoUrl) Convert() bool {
 }
 
 func (o *ObjectVideoUrl) Send() bool {
-	return o.Task.SendVideo()
+	return o.Task.SendVideo(false)
 }
 
 func (o *ObjectVideoUrl) Clean() {

@@ -13,7 +13,7 @@ import (
 )
 
 func (o *ObjectTorrent) Download() bool {
-	if !o.Task.Alloc("torrent") {
+	if !o.Task.AllocTorrent("torrent") {
 		log.Debug("limit exceeded")
 		return false
 	}
@@ -160,7 +160,7 @@ func (o *ObjectTorrent) Send() bool {
 	}
 
 	if path.Ext(o.Task.FileConverted.FilePath) == ".mp4" {
-		return o.Task.SendVideo()
+		return o.Task.SendVideo(true)
 	}
 
 	//if o.Task.UserFromDB.Premium == 0 {

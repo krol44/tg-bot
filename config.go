@@ -26,7 +26,8 @@ type Struct struct {
 
 	AllowVideoFormats []string
 
-	MaxTasks int
+	MaxTasks        int
+	MaxTasksTorrent int
 
 	CuteStickers []string
 }
@@ -49,6 +50,7 @@ func init() {
 		"http://" + os.Getenv("TG_API_ENDPOINT") + "/bot%s/%s",
 		[]string{".avi", ".mkv", ".mp4", ".m4v", ".flv", ".ts", ".mov", ".wmv", ".webm", ".3gp"},
 		2,
+		1,
 		[]string{
 			"CAACAgIAAxkBAAIEW2OcfHb7yPa6z59rHlFiTTUTkA3XAAJ-GQACHiDBS43V6msCr8MXKwQ",
 			"CAACAgIAAxkBAAIRfWOreMzwPkQDC4jYKGUTeCxNO3TuAAJ3GAAC24IRSEjXhoRmKkUtKwQ",

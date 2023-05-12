@@ -98,6 +98,48 @@ func (t *Task) Alloc(typeDl string) bool {
 	return true
 }
 
+func (t *Task) AllocTorrent(typeDl string) bool {
+	qn, _ := t.App.TorrentChatsWork.m.Load(t.Message.MessageID)
+	t.App.SendLogToChannel(t.Message.From, "mess",
+		fmt.Sprintf("downloading %s - %s | his turn torrent: %d",
+			typeDl, t.Message.Text, qn.(int)+1))
+
+	if t.Limit(typeDl) {
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+typeDl+" - "+
+			t.Lang("limit exceeded, try again in 24 hours")))
+
+		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("limit exceeded - "+typeDl))
+
+		return false
+	}
+
+	msg := tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 "+t.Lang("Download is starting soon")+"...")
+
+	// creating edit message
+	messStat := t.Send(msg)
+	t.MessageEditID = messStat.MessageID
+
+	for {
+		if _, bo := t.App.ChatsWork.StopTasks.Load(t.Message.Chat.ID); bo {
+			return true
+		}
+
+		// torrent queue
+		qn, _ := t.App.TorrentChatsWork.m.Load(t.Message.MessageID)
+		if qn.(int) < config.MaxTasksTorrent {
+			break
+		}
+
+		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, fmt.Sprintf(
+			"🍀 "+t.Lang("Download is starting soon")+"...\n\n🚦 "+t.Lang("Your queue")+": %d",
+			qn.(int)-config.MaxTasksTorrent+1)))
+
+		time.Sleep(4 * time.Second)
+	}
+
+	return true
+}
+
 func (t *Task) Limit(typeDl string) bool {
 	var ld struct {
 		Quantity int `db:"quantity"`

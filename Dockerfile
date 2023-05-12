@@ -10,5 +10,6 @@ RUN apt update
 RUN apt install -y ffmpeg tzdata python3 python3-venv python3-pip
 RUN python3 -m pip install -U yt-dlp spotdl
 COPY ./ffmpeg .
+COPY instagram-cookies.txt .
 COPY --from=builder /app/tor-purr-bot .
 CMD ["./tor-purr-bot"]
