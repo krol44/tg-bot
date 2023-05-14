@@ -118,6 +118,9 @@ func (t *Translate) Lang(str string) string {
 		"Didn't have time to download, maximum 30 minutes": {
 			"ru": "Не успел скачать, максимум 30 минут",
 		},
+		"Support me and get unlimited": {
+			"ru": "Поддержи меня и получи безлимит",
+		},
 	}
 
 	if re, ok := storage[str][t.Code]; ok {

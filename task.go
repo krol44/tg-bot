@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/anacrolix/torrent"
 	"github.com/dustin/go-humanize"
@@ -63,11 +64,6 @@ func (t *Task) Alloc(typeDl string) bool {
 			typeDl, t.Message.Text, qn.(int)+1))
 
 	if t.Limit(typeDl) {
-		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+typeDl+" - "+
-			t.Lang("limit exceeded, try again in 24 hours")))
-
-		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("limit exceeded - "+typeDl))
-
 		return false
 	}
 
@@ -88,9 +84,14 @@ func (t *Task) Alloc(typeDl string) bool {
 			break
 		}
 
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, fmt.Sprintf(
+		ms := fmt.Sprintf(
 			"🍀 "+t.Lang("Download is starting soon")+"...\n\n🚦 "+t.Lang("Your queue")+": %d",
-			qn.(int)-config.MaxTasks+1)))
+			qn.(int)-config.MaxTasks+1)
+
+		if ms != t.MessageTextLast {
+			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, ms))
+			t.MessageTextLast = ms
+		}
 
 		time.Sleep(4 * time.Second)
 	}
@@ -105,11 +106,6 @@ func (t *Task) AllocTorrent(typeDl string) bool {
 			typeDl, t.Message.Text, qn.(int)+1))
 
 	if t.Limit(typeDl) {
-		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+typeDl+" - "+
-			t.Lang("limit exceeded, try again in 24 hours")))
-
-		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("limit exceeded - "+typeDl))
-
 		return false
 	}
 
@@ -130,9 +126,14 @@ func (t *Task) AllocTorrent(typeDl string) bool {
 			break
 		}
 
-		t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, fmt.Sprintf(
+		ms := fmt.Sprintf(
 			"🍀 "+t.Lang("Download is starting soon")+"...\n\n🚦 "+t.Lang("Your queue")+": %d",
-			qn.(int)-config.MaxTasksTorrent+1)))
+			qn.(int)-config.MaxTasksTorrent+1)
+
+		if ms != t.MessageTextLast {
+			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, ms))
+			t.MessageTextLast = ms
+		}
 
 		time.Sleep(4 * time.Second)
 	}
@@ -151,12 +152,28 @@ func (t *Task) Limit(typeDl string) bool {
 	err := Postgres.Get(&ld, `SELECT count(id) AS quantity FROM limits
 	                             WHERE type_object = $1 AND telegram_id = $2 AND
 	                           date_create BETWEEN now() - INTERVAL '24 hour' AND now()`, typeDl, t.Message.From.ID)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		log.Error(err)
 		return false
 	}
 
-	if ld.Quantity >= 5 {
+	re := false
+	if ld.Quantity >= 2 && typeDl == "torrent" {
+		re = true
+	} else if ld.Quantity >= 5 {
+		re = true
+	}
+
+	if re {
+		ms := tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+typeDl+" - "+
+			t.Lang("limit exceeded, try again in 24 hours")+"\n\n ❤️ "+t.Lang("Support me and get unlimited")+
+			"\n https://boosty.to/torpurrbot",
+		)
+		ms.DisableWebPagePreview = true
+		t.Send(ms)
+
+		t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("🪫 limit exceeded - "+typeDl))
+
 		return true
 	}
 

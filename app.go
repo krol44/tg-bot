@@ -171,6 +171,7 @@ func (a *App) ObserverQueue() {
 				if r := recover(); r != nil {
 					// global queue
 					a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
+					a.TorrentChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
 					cleanerWait.Done()
 					cleanerWait.Wait()

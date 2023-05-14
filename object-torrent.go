@@ -28,6 +28,15 @@ func (o *ObjectTorrent) Download() bool {
 				o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
 					fmt.Sprintf("😔 "+o.Task.Lang("File is bigger 2 GB"))))
 				o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "File is bigger 2 GB")
+
+				_, err := Postgres.Exec(`DELETE FROM limits WHERE id = any 
+                         (array(SELECT id FROM limits WHERE telegram_id = $1 AND type_object = $2
+                                                      ORDER BY date_create DESC LIMIT 1))`,
+					o.Task.Message.From.ID, "torrent")
+				if err != nil {
+					log.Error(err)
+				}
+
 				return false
 			}
 			val.SetPriority(torrent.PiecePriorityNow)
