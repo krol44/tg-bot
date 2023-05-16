@@ -166,14 +166,14 @@ func (a *App) ObserverQueue() {
 		cleanerWait.Add(1)
 
 		go func(valIn QueueMessages) {
+			defer cleanerWait.Done()
+
 			// if fatal, execute cleaning
-			defer func(valIn QueueMessages) {
+			defer func(vi QueueMessages) {
 				if r := recover(); r != nil {
 					// global queue
-					a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
-
-					cleanerWait.Done()
-					cleanerWait.Wait()
+					a.ChatsWork.IncMinus(vi.Message.MessageID, vi.Message.Chat.ID)
+					a.TorrentChatsWork.IncMinus(vi.Message.MessageID, vi.Message.Chat.ID)
 
 					log.Infof("%+v", errors.WithStack(errors.New("Stacktrace")))
 					log.Errorf("Crash queue: %s", r)
@@ -217,8 +217,6 @@ func (a *App) ObserverQueue() {
 				}
 				task.Run(t)
 
-				task.RemoveMessageEdit()
-
 				// torrent queue
 				a.TorrentChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 			}
@@ -251,10 +249,10 @@ func (a *App) ObserverQueue() {
 			// send ad
 			go a.SendAd(valIn.Message)
 
-			// lock when files are deleting
-			cleanerWait.Done()
-			cleanerWait.Wait()
-			task.Cleaner()
+			go func(t Task) {
+				cleanerWait.Wait()
+				t.Cleaner()
+			}(task)
 		}(val)
 	}
 }

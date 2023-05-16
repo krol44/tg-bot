@@ -116,7 +116,7 @@ func (t *Translate) Lang(str string) string {
 			"ru": "лимит превышен, повторите попытку через 24 часа",
 		},
 		"Didn't have time to download, maximum 30 minutes or speed is low": {
-			"ru": "Не успел скачать, максимум 30 минут или скорость низкая",
+			"ru": "Не хватило времени на скачивание, максимум 30 минут или скорость низкая",
 		},
 		"Support me and get unlimited": {
 			"ru": "Поддержи меня и получи безлимит",
@@ -126,6 +126,9 @@ func (t *Translate) Lang(str string) string {
 		},
 		"Please, send me /start command": {
 			"ru": "Пожалуйста, пришли мне команду /start",
+		},
+		"Didn't have time to download": {
+			"ru": "Не хватило времени на скачивание",
 		},
 	}
 

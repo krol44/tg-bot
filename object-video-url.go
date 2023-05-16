@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	tgbotapi "github.com/krol44/telegram-bot-api"
@@ -12,7 +13,6 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -91,7 +91,7 @@ func (o *ObjectVideoUrl) Download() bool {
 		time.Sleep(10 * time.Second)
 		if *protectedFlag == true {
 			log.Warning("get info video url kill process")
-			cmd.Process.Signal(syscall.SIGTERM)
+			cmd.Process.Kill()
 		}
 	}(cmd, &protectedFlag)
 
@@ -223,7 +223,20 @@ func (o *ObjectVideoUrl) Download() bool {
 		return false
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	defer cancel()
+
 	for {
+		select {
+		case <-ctx.Done():
+			o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
+				"😔 "+o.Task.Lang("Didn't have time to download")))
+			o.Task.App.SendLogToChannel(o.Task.Message.From, "mess",
+				"Didn't have time to download video url")
+			return false
+		default:
+		}
+
 		tmp := make([]byte, 1024*400)
 		_, err := stdout.Read(tmp)
 		if err != nil {
@@ -248,7 +261,8 @@ func (o *ObjectVideoUrl) Download() bool {
 		if percent == "0" {
 			percent = "•• "
 		}
-		mess := fmt.Sprintf("🔽 %s \n\n🔥 "+o.Task.Lang("Download progress")+": %s%%", cleanTitle, percent)
+		mess := fmt.Sprintf("🔽 %s \n\n🔥 "+o.Task.Lang("Download progress")+": %s%%",
+			cleanTitle, percent)
 		if o.Task.MessageTextLast != mess {
 			o.Task.Send(tgbotapi.NewEditMessageText(o.Task.Message.Chat.ID, o.Task.MessageEditID, mess))
 			o.Task.MessageTextLast = mess
