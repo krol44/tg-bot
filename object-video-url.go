@@ -12,6 +12,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -68,8 +69,13 @@ func (o *ObjectVideoUrl) Download() bool {
 		return false
 	}
 
-	if !o.Task.Alloc("video-url") {
+	if o.Task.Limit("video-url") {
 		log.Debug("limit exceeded")
+		return false
+	}
+
+	if !o.Task.Alloc("video-url") {
+		o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "❗️ return - error alloc")
 		return false
 	}
 
@@ -85,7 +91,7 @@ func (o *ObjectVideoUrl) Download() bool {
 		time.Sleep(10 * time.Second)
 		if *protectedFlag == true {
 			log.Warning("get info video url kill process")
-			cmd.Process.Kill()
+			cmd.Process.Signal(syscall.SIGTERM)
 		}
 	}(cmd, &protectedFlag)
 
@@ -93,7 +99,8 @@ func (o *ObjectVideoUrl) Download() bool {
 
 	if err != nil {
 		o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID, "❗️ "+o.Task.Lang("Video url is bad")+" 1"))
-		log.Error(err)
+		o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "❗️ Video url is bad 1")
+		log.Warn(err)
 		return false
 	}
 
@@ -176,6 +183,13 @@ func (o *ObjectVideoUrl) Download() bool {
 	}
 
 	cmd = exec.Command("yt-dlp", args...)
+	defer func(c *exec.Cmd) {
+		c.Process.Kill()
+		if err := c.Wait(); err != nil {
+			log.Info(err)
+		}
+		c.Process.Release()
+	}(cmd)
 
 	stopProtected := false
 	go func(cmd *exec.Cmd, folder string, stopProtected *bool) {
@@ -189,7 +203,6 @@ func (o *ObjectVideoUrl) Download() bool {
 			size, _ := o.Task.DirSize(folder)
 
 			if sizeSave == size {
-				cmd.Process.Kill()
 				log.Warning("kill cmd download video url")
 				o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
 					"❗️ "+o.Task.Lang("Video url is bad")+" 4"))
@@ -201,7 +214,6 @@ func (o *ObjectVideoUrl) Download() bool {
 
 	stdout, err := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
-	defer stdout.Close()
 	if err != nil {
 		log.Error(err)
 		return false
@@ -241,15 +253,8 @@ func (o *ObjectVideoUrl) Download() bool {
 			o.Task.Send(tgbotapi.NewEditMessageText(o.Task.Message.Chat.ID, o.Task.MessageEditID, mess))
 			o.Task.MessageTextLast = mess
 		}
-
 		if _, bo := o.Task.App.ChatsWork.StopTasks.Load(o.Task.Message.Chat.ID); bo {
-			warn := cmd.Process.Kill()
-			if warn != nil {
-				log.Warn(warn)
-			}
-
 			stopProtected = true
-
 			return false
 		}
 
@@ -258,11 +263,6 @@ func (o *ObjectVideoUrl) Download() bool {
 		}
 
 		time.Sleep(2 * time.Second)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		log.Warn(err)
-		return false
 	}
 
 	if strings.Contains(o.Task.Message.Text, "coub.com/view") {

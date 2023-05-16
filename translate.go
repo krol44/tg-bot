@@ -109,17 +109,23 @@ func (t *Translate) Lang(str string) string {
 			"ru": "Недопустимый url, поддерживаю только",
 		},
 		"I am so appreciative of you for using bot! %s Please, share below a message with your friends. Thank you!": {
-			"ru": "Я так благодарен тебе за использование бота!" +
+			"ru": "Я так благодарен Вам за использование бота!" +
 				" %s Пожалуйста, поделитесь приведенным ниже сообщением со своими друзьями. Спасибо!",
 		},
 		"limit exceeded, try again in 24 hours": {
 			"ru": "лимит превышен, повторите попытку через 24 часа",
 		},
-		"Didn't have time to download, maximum 30 minutes": {
-			"ru": "Не успел скачать, максимум 30 минут",
+		"Didn't have time to download, maximum 30 minutes or speed is low": {
+			"ru": "Не успел скачать, максимум 30 минут или скорость низкая",
 		},
 		"Support me and get unlimited": {
 			"ru": "Поддержи меня и получи безлимит",
+		},
+		"Bad torrent file or magnet link": {
+			"ru": "Плохой торрент файл или magnet link",
+		},
+		"Please, send me /start command": {
+			"ru": "Пожалуйста, пришли мне команду /start",
 		},
 	}
 

@@ -45,16 +45,24 @@ func (t *Task) Run(th ObjectHandler) {
 	th.Clean()
 }
 
-func (t *Task) Send(ct tgbotapi.Chattable) tgbotapi.Message {
+func (t *Task) Send(ct tgbotapi.Chattable) (tgbotapi.Message, bool) {
 	mess, err := t.App.Bot.Send(ct)
-	if err != nil {
-		log.Error(ct, err)
-		log.Infof("%+v", errors.WithStack(errors.New("Stacktrace")))
-	}
-
 	t.App.Logs(mess)
 
-	return mess
+	if err != nil {
+		if strings.Contains(err.Error(), "bot was blocked by the user") ||
+			strings.Contains(err.Error(), "message to edit not found") {
+			log.Warn(ct, err)
+			return tgbotapi.Message{}, true
+		}
+
+		log.Error(ct, err)
+		log.Infof("%+v", errors.WithStack(errors.New("Stacktrace")))
+
+		return tgbotapi.Message{}, true
+	}
+
+	return mess, false
 }
 
 func (t *Task) Alloc(typeDl string) bool {
@@ -63,14 +71,13 @@ func (t *Task) Alloc(typeDl string) bool {
 		fmt.Sprintf("downloading %s - %s | his turn: %d",
 			typeDl, t.Message.Text, qn.(int)+1))
 
-	if t.Limit(typeDl) {
-		return false
-	}
-
 	msg := tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 "+t.Lang("Download is starting soon")+"...")
 
 	// creating edit message
-	messStat := t.Send(msg)
+	messStat, err := t.Send(msg)
+	if err {
+		return false
+	}
 	t.MessageEditID = messStat.MessageID
 
 	for {
@@ -89,7 +96,10 @@ func (t *Task) Alloc(typeDl string) bool {
 			qn.(int)-config.MaxTasks+1)
 
 		if ms != t.MessageTextLast {
-			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, ms))
+			_, err := t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, ms))
+			if err {
+				return false
+			}
 			t.MessageTextLast = ms
 		}
 
@@ -105,14 +115,13 @@ func (t *Task) AllocTorrent(typeDl string) bool {
 		fmt.Sprintf("downloading %s - %s | his turn torrent: %d",
 			typeDl, t.Message.Text, qn.(int)+1))
 
-	if t.Limit(typeDl) {
-		return false
-	}
-
 	msg := tgbotapi.NewMessage(t.Message.Chat.ID, "🍀 "+t.Lang("Download is starting soon")+"...")
 
 	// creating edit message
-	messStat := t.Send(msg)
+	messStat, err := t.Send(msg)
+	if err {
+		return false
+	}
 	t.MessageEditID = messStat.MessageID
 
 	for {
@@ -131,7 +140,10 @@ func (t *Task) AllocTorrent(typeDl string) bool {
 			qn.(int)-config.MaxTasksTorrent+1)
 
 		if ms != t.MessageTextLast {
-			t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, ms))
+			_, err := t.Send(tgbotapi.NewEditMessageText(t.Message.Chat.ID, t.MessageEditID, ms))
+			if err {
+				return false
+			}
 			t.MessageTextLast = ms
 		}
 
@@ -166,7 +178,7 @@ func (t *Task) Limit(typeDl string) bool {
 
 	if re {
 		ms := tgbotapi.NewMessage(t.Message.Chat.ID, "😔 "+typeDl+" - "+
-			t.Lang("limit exceeded, try again in 24 hours")+"\n\n ❤️ "+t.Lang("Support me and get unlimited")+
+			t.Lang("limit exceeded, try again in 24 hours")+"\n\n❤️ "+t.Lang("Support me and get unlimited")+
 			"\n https://boosty.to/torpurrbot",
 		)
 		ms.DisableWebPagePreview = true
@@ -196,18 +208,20 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() *torrent.Torrent {
 		err            error
 	)
 
+	var isError bool
+
 	if !isMagnet {
 		file, err = t.App.Bot.GetFile(tgbotapi.FileConfig{FileID: t.Message.Document.FileID})
 		if err != nil {
+			isError = true
 			log.Error(err)
-			return nil
 		}
 
 		torrentProcess, err = t.App.TorClient.AddTorrentFromFile(config.TgPathLocal + "/" + config.BotToken +
 			"/" + file.FilePath)
 		if err != nil {
+			isError = true
 			log.Error(err)
-			return nil
 		}
 
 		t.App.SendLogToChannel(t.Message.From, "doc",
@@ -215,15 +229,24 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() *torrent.Torrent {
 	} else {
 		torrentProcess, err = t.App.TorClient.AddMagnet(t.Message.Text)
 		if err != nil {
-			log.Error(err)
-			return nil
+			isError = true
+			log.Warn(err)
 		}
 
 		t.App.SendLogToChannel(t.Message.From, "mess", "torrent magnet")
 	}
 
+	if isError {
+		t.Send(tgbotapi.NewMessage(t.Message.Chat.ID,
+			"😔 "+t.Lang("Bad torrent file or magnet link")))
+		t.App.SendLogToChannel(t.Message.From, "mess",
+			"Bad torrent file or magnet link")
+		return nil
+	}
+
 	ctxTimeLimit, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	m := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "🕚 "+t.Lang("Getting data from torrent, please wait")))
+	m, _ := t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "🕚 "+t.Lang("Getting data from torrent, please wait")))
+
 	select {
 	case <-torrentProcess.GotInfo():
 	case <-ctxTimeLimit.Done():
@@ -284,7 +307,7 @@ func (t *Task) OpenKeyBoardWithTorrentFiles() *torrent.Torrent {
 
 	msg.ReplyMarkup = numericKeyboard
 
-	mess := t.Send(msg)
+	mess, _ := t.Send(msg)
 
 	t.App.ChatsWork.ChosenMessageIDs.Store(mess.Chat.ID, mess.MessageID)
 

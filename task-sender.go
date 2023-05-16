@@ -81,7 +81,12 @@ func (t *Task) SendVideo(forwardLock bool) bool {
 	} else {
 		stopAction = true
 
-		t.App.SendLogToChannel(t.Message.From, "video", fmt.Sprintf("video file - "+file.Name),
+		var ist string
+		if t.Torrent.Name != "" {
+			ist = "☢️ torrent: "
+		}
+
+		t.App.SendLogToChannel(t.Message.From, "video", ist+"video file - "+file.Name,
 			sentVideo.Video.FileID)
 
 		Cache.Add(Cache{Task: t}, sentVideo.Video.FileID, sentVideo.Video.FileSize, file.FilePathNative)
@@ -149,8 +154,14 @@ func (t *Task) SendDoc() bool {
 			fileIDStr = sentDoc.Audio.FileID
 			fileSize = sentDoc.Audio.FileSize
 		}
+
+		var ist string
+		if t.Torrent.Name != "" {
+			ist = "☢️ torrent: "
+		}
+
 		t.App.SendLogToChannel(t.Message.From, "doc",
-			fmt.Sprintf("doc file - "+t.Torrent.Name), fileIDStr)
+			ist+"doc file - "+t.Torrent.Name, fileIDStr)
 
 		Cache.Add(Cache{Task: t}, fileIDStr, fileSize, t.File)
 	}
@@ -199,6 +210,7 @@ func (t *Task) SendAudio() bool {
 		}
 	}(&stopAction)
 
+	var filesToLog []interface{}
 	for _, chuck := range chunkSlice(t.Files, 10) {
 		var filesNameForCache []string
 		var files []interface{}
@@ -232,7 +244,8 @@ func (t *Task) SendAudio() bool {
 
 			t.Send(tgbotapi.NewMessage(t.Message.Chat.ID, "😞 "+t.Lang("Something wrong... I will be fixing it")))
 
-			t.App.SendLogToChannel(t.Message.From, "mess", fmt.Sprintf("send audio err\n\n %s", err))
+			t.App.SendLogToChannel(t.Message.From, "mess",
+				fmt.Sprintf("send audio err\n\n %s", err))
 		} else {
 			for _, st := range sentAudio {
 				var pathForSave string
@@ -247,10 +260,14 @@ func (t *Task) SendAudio() bool {
 				if pathForSave != "" {
 					Cache.Add(Cache{Task: t}, fileIDStr, fileSize, pathForSave)
 				}
+
+				filesToLog = append(filesToLog, tgbotapi.NewInputMediaAudio(tgbotapi.FileID(fileIDStr)))
 			}
 		}
+	}
 
-		_, err = t.App.Bot.SendMediaGroup(tgbotapi.NewMediaGroup(config.ChatIdChannelLog, files))
+	for _, cl := range chunkSlice(filesToLog, 10) {
+		_, err := t.App.Bot.SendMediaGroup(tgbotapi.NewMediaGroup(config.ChatIdChannelLog, cl))
 		if err != nil {
 			log.Error(err)
 		}

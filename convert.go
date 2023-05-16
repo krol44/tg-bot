@@ -162,7 +162,18 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 	}
 
 	log.Info(args)
+
+	tmpLast := ""
+
 	cmd := exec.Command(ffmpegPath, args...)
+	defer func(c *exec.Cmd, t string) {
+		c.Process.Kill()
+		if err := c.Wait(); err != nil {
+			log.Info(t)
+			log.Info(err)
+		}
+		c.Process.Release()
+	}(cmd, tmpLast)
 
 	stdout, err := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
@@ -173,13 +184,8 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 		return err
 	}
 
-	tmpLast := ""
 	for {
 		if _, bo := c.Task.App.ChatsWork.StopTasks.Load(c.Task.Message.Chat.ID); bo {
-			warn := cmd.Process.Kill()
-			if warn != nil {
-				log.Warn(warn)
-			}
 			return errors.New("force stop")
 		}
 
@@ -214,11 +220,6 @@ func (c Convert) execConvert(bitrate int, timeTotal time.Time, fileName string, 
 		}
 
 		time.Sleep(2 * time.Second)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		log.Error(tmpLast)
-		return err
 	}
 
 	return nil

@@ -1,5 +1,11 @@
 ## TorPurrBot - Telegram bot
-A Very Tiny BitTorrent Client, YouTube, TikTok downloader and Media Player 🔥
+A Very Tiny BitTorrent Client, YouTube, TikTok downloader 🔥
+
+### Support
+Torrent, youtube.com, tiktok.com,
+vk.com/video, twitch.tv/videos,
+twitch.tv/*****/clip, rutube.ru/video, coub.com/view,
+open.spotify.com/track, open.spotify.com/album and etc
 
 ### Demo
 https://t.me/TorPurrBot

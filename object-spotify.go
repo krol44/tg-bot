@@ -28,8 +28,13 @@ func (o *ObjectSpotify) Download() bool {
 		return false
 	}
 
-	if !o.Task.Alloc("spotify") {
+	if o.Task.Limit("spotify") {
 		log.Debug("limit exceeded")
+		return false
+	}
+
+	if !o.Task.Alloc("spotify") {
+		o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "❗️ return - error alloc")
 		return false
 	}
 
@@ -48,6 +53,13 @@ func (o *ObjectSpotify) Download() bool {
 	}
 
 	cmd := exec.Command("spotdl", args...)
+	defer func(c *exec.Cmd) {
+		c.Process.Kill()
+		if err := c.Wait(); err != nil {
+			log.Info(err)
+		}
+		c.Process.Release()
+	}(cmd)
 
 	stopProtected := false
 	go func(cmd *exec.Cmd, folder string, stopProtected *bool) {
@@ -61,7 +73,6 @@ func (o *ObjectSpotify) Download() bool {
 			size, _ := o.Task.DirSize(folder)
 
 			if sizeSave == size {
-				cmd.Process.Kill()
 				log.Warning("kill cmd download audio url")
 				o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
 					"❗️ "+o.Task.Lang("Audio url is bad")+" 4"))
@@ -73,7 +84,6 @@ func (o *ObjectSpotify) Download() bool {
 
 	stdout, err := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
-	defer stdout.Close()
 	if err != nil {
 		log.Error(err)
 		return false
@@ -111,22 +121,11 @@ func (o *ObjectSpotify) Download() bool {
 		}
 
 		if _, bo := o.Task.App.ChatsWork.StopTasks.Load(o.Task.Message.Chat.ID); bo {
-			warn := cmd.Process.Kill()
-			if warn != nil {
-				log.Warn(warn)
-			}
-
 			stopProtected = true
-
 			return false
 		}
 
 		time.Sleep(time.Second)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		log.Error(err)
-		return false
 	}
 
 	dir, err := os.ReadDir(folder)

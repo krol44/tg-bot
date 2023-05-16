@@ -135,8 +135,8 @@ func (c Cache) TrySendThroughMd5(NativeFilePath string) bool {
 	if err != nil {
 		return false
 	}
-	c.Task.App.SendLogToChannel(c.Task.Message.From, "mess",
-		"video sent from cache md5 - "+row.Caption)
+	c.Task.App.SendLogToChannel(c.Task.Message.From, "video",
+		"video sent from cache md5 - "+row.Caption, row.TgFileID)
 
 	return true
 }
@@ -162,8 +162,9 @@ func (c Cache) TrySendThroughID() bool {
 		log.Error(err)
 		return false
 	}
-	c.Task.App.SendLogToChannel(c.Task.Message.From, "mess",
-		"video sent from cache video url id - "+row.Caption)
+
+	c.Task.App.SendLogToChannel(c.Task.Message.From, "video",
+		"video sent from cache video url id - "+row.Caption, row.TgFileID)
 
 	return true
 }

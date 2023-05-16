@@ -13,8 +13,13 @@ import (
 )
 
 func (o *ObjectTorrent) Download() bool {
-	if !o.Task.AllocTorrent("torrent") {
+	if o.Task.Limit("torrent") {
 		log.Debug("limit exceeded")
+		return false
+	}
+
+	if !o.Task.AllocTorrent("torrent") {
+		o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "❗️ return - error alloc")
 		return false
 	}
 
@@ -28,15 +33,6 @@ func (o *ObjectTorrent) Download() bool {
 				o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
 					fmt.Sprintf("😔 "+o.Task.Lang("File is bigger 2 GB"))))
 				o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "File is bigger 2 GB")
-
-				_, err := Postgres.Exec(`DELETE FROM limits WHERE id = any 
-                         (array(SELECT id FROM limits WHERE telegram_id = $1 AND type_object = $2
-                                                      ORDER BY date_create DESC LIMIT 1))`,
-					o.Task.Message.From.ID, "torrent")
-				if err != nil {
-					log.Error(err)
-				}
-
 				return false
 			}
 			val.SetPriority(torrent.PiecePriorityNow)
@@ -96,6 +92,7 @@ func (o *ObjectTorrent) Download() bool {
 
 	timeStartToWork := time.Now().Unix()
 	maxTimeWork := int64(1800)
+	var sizeCheck int
 
 	for {
 		if time.Now().Unix() > timeStartToWork+maxTimeWork {
@@ -107,6 +104,13 @@ func (o *ObjectTorrent) Download() bool {
 		if fileChosen.FileInfo().Length == fileChosen.BytesCompleted() {
 			break
 		}
+
+		if sizeCheck > 60 && fileChosen.BytesCompleted() == 0 {
+			maxTimeWork = 0
+			break
+		}
+		sizeCheck++
+
 		time.Sleep(time.Second)
 	}
 
@@ -114,7 +118,7 @@ func (o *ObjectTorrent) Download() bool {
 
 	if time.Now().Unix() > timeStartToWork+maxTimeWork {
 		o.Task.Send(tgbotapi.NewMessage(o.Task.Message.Chat.ID,
-			fmt.Sprintf("😔 "+o.Task.Lang("Didn't have time to download, maximum 30 minutes"))))
+			fmt.Sprintf("😔 "+o.Task.Lang("Didn't have time to download, maximum 30 minutes or speed is low"))))
 		o.Task.App.SendLogToChannel(o.Task.Message.From, "mess", "didn't have time to download")
 
 		o.Task.Torrent.Process.Drop()

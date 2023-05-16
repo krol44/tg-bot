@@ -64,8 +64,8 @@ func main() {
 				Path     string `db:"native_path_file"`
 			}
 
-			err := Postgres.Get(&cache, `SELECT tg_file_id, caption, native_path_file
-												FROM cache WHERE caption LIKE $1`, "%"+urlVideo+"%")
+			err := Postgres.Get(&cache, `SELECT tg_file_id, caption, native_path_file FROM cache WHERE caption LIKE $1`,
+				"%"+urlVideo+"%")
 			if err != nil && err != sql.ErrNoRows {
 				log.Error(err)
 				continue
@@ -185,8 +185,8 @@ func main() {
 
 		if update.MyChatMember != nil {
 			if update.MyChatMember.NewChatMember.Status == "kicked" {
-				_, err := Postgres.Exec("UPDATE users SET block_why = $1 WHERE telegram_id = $2",
-					"user kicked bot", update.MyChatMember.From.ID)
+				_, err := Postgres.Exec("UPDATE users SET block = $1, block_why = $2 WHERE telegram_id = $3",
+					1, "user kicked bot", update.MyChatMember.From.ID)
 				if err != nil {
 					log.Error(err)
 				}

@@ -171,7 +171,6 @@ func (a *App) ObserverQueue() {
 				if r := recover(); r != nil {
 					// global queue
 					a.ChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
-					a.TorrentChatsWork.IncMinus(valIn.Message.MessageID, valIn.Message.Chat.ID)
 
 					cleanerWait.Done()
 					cleanerWait.Wait()
@@ -186,8 +185,16 @@ func (a *App) ObserverQueue() {
 			}
 
 			var userFromDB User
-			_ = Postgres.Get(&userFromDB, "SELECT premium, language_code FROM users WHERE telegram_id = $1",
+			_ = Postgres.Get(&userFromDB, `SELECT telegram_id, premium, language_code FROM users
+                                           			WHERE telegram_id = $1`,
 				valIn.Message.From.ID)
+
+			if userFromDB.TelegramID == 0 {
+				a.Bot.Send(tgbotapi.NewMessage(valIn.Message.From.ID,
+					translate.Lang("Please, send me /start command")))
+				a.SendLogToChannel(valIn.Message.From, "mess", "‼️ please, use /start command")
+				return
+			}
 
 			task := Task{Message: valIn.Message, App: a, UserFromDB: userFromDB, Translate: translate}
 			task.Translate.Code = userFromDB.LanguageCode
@@ -276,14 +283,19 @@ func (a *App) SendAd(mess *tgbotapi.Message) {
 	time.Sleep(time.Minute * 30)
 
 	var userFromDB User
-	_ = Postgres.Get(&userFromDB, "SELECT sent_ad FROM users WHERE telegram_id = $1", mess.From.ID)
+	err := Postgres.Get(&userFromDB, "SELECT sent_ad FROM users WHERE telegram_id = $1", mess.From.ID)
+	if err != nil && err == sql.ErrNoRows {
+		log.Error(err)
+		return
+	}
+
 	if userFromDB.SentAd == 1 {
 		return
 	}
 
 	tr := &Translate{Code: mess.From.LanguageCode}
 
-	_, err := a.Bot.Send(tgbotapi.NewMessage(mess.Chat.ID,
+	_, err = a.Bot.Send(tgbotapi.NewMessage(mess.Chat.ID,
 		fmt.Sprintf(tr.Lang(
 			"I am so appreciative of you for using bot! %s Please,"+
 				" share below a message with your friends. Thank you!"), "❤️")))

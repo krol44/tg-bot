@@ -55,6 +55,7 @@ services:
       context: .
       dockerfile: ./Dockerfile
     cpu_count: 8
+    mem_limit: "8000M"
     depends_on:
       - tor-purr-bot-vpn
       - telegram-api
