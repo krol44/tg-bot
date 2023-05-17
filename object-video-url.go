@@ -223,7 +223,7 @@ func (o *ObjectVideoUrl) Download() bool {
 		return false
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*20)
 	defer cancel()
 
 	for {
