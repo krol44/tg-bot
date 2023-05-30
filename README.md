@@ -1,4 +1,4 @@
-## TorPurrBot - Telegram bot
+## TgBot - Telegram bot
 A Very Tiny BitTorrent Client, YouTube, TikTok downloader 🔥
 
 ### Support
@@ -13,7 +13,7 @@ https://t.me/TorPurrBot
 ### Setup
 
 1. cd /home
-2. git clone https://github.com/krol44/tor-purr-bot
+2. git clone https://github.com/krol44/tg-bot
 3. cd /home/tor-purr-bot && mkdir storage
 4. mkdir storage/telegram-bot-api-data && mkdir storage/bot-data && mkdir storage/postgres-data
 5. nano .env.secrets
