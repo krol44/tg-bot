@@ -8,12 +8,12 @@ twitch.tv/*****/clip, rutube.ru/video, coub.com/view,
 open.spotify.com/track, open.spotify.com/album and etc
 
 ### Demo
-https://krol44.com/bot
+https://krol44.com/?link=tg-bot
 
 ### Setup
 
 1. cd /home
-2. git clone https://krol44.com/?link=tg-bot
+2. git clone https://github.com/krol44/tg-bot
 3. cd /home/tor-purr-bot && mkdir storage
 4. mkdir storage/telegram-bot-api-data && mkdir storage/bot-data && mkdir storage/postgres-data
 5. nano .env.secrets
