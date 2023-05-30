@@ -1,5 +1,5 @@
 ## TgBot - Telegram bot
-A Very Tiny BitTorrent Client, YouTube, TikTok downloader 🔥
+Telegram Bot Downloader, Torrent Client, Youtube, Tiktok, etc 🔥
 
 ### Support
 Torrent, youtube.com, tiktok.com,
