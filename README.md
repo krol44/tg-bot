@@ -14,14 +14,14 @@ https://krol44.com/?link=tg-bot
 
 1. cd /home
 2. git clone https://github.com/krol44/tg-bot
-3. cd /home/tor-purr-bot && mkdir storage
+3. cd /home/tpb && mkdir storage
 4. mkdir storage/telegram-bot-api-data && mkdir storage/bot-data && mkdir storage/postgres-data
 5. nano .env.secrets
 ```
-COMPOSE_PROJECT_NAME=tor-purr-bot
+COMPOSE_PROJECT_NAME=tpb
 DEV=false
 BOT_DEBUG=false
-STORAGE_PATH=/home/tor-purr-bot
+STORAGE_PATH=/home/tpb
 TELEGRAM_STAT=1
 TELEGRAM_API_ID=0000000
 TELEGRAM_API_HASH=aaaaa...
